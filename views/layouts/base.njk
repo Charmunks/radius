@@ -4,9 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}yelps{% endblock %}</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/public/style.css">
 </head>
 <body>
   {% block content %}{% endblock %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,4 +1,36 @@
-body {
-  font-family: system-ui, sans-serif;
-  margin: 2rem;
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 0; color: #1d2433; }
+.app { display: flex; height: 100vh; }
+.panel { width: 360px; max-width: 100%; padding: 1.25rem; overflow-y: auto; border-right: 1px solid #e3e6ec; }
+#map { flex: 1; }
+h1 { margin: 0 0 .25rem; font-size: 1.5rem; }
+.sub { margin: 0 0 1rem; color: #5b6578; }
+.pick { display: block; margin-bottom: 1rem; font-weight: 600; }
+.pick select { display: block; width: 100%; margin-top: .4rem; padding: .6rem; font: inherit; font-weight: 400; border: 1px solid #c9ceda; border-radius: 8px; background: #fff; }
+#go { width: 100%; padding: .7rem; font-size: 1rem; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; cursor: pointer; }
+#go:disabled { opacity: .6; cursor: wait; }
+#status { min-height: 1.2em; color: #5b6578; font-size: .9rem; }
+#result h2 { margin: 1rem 0 .2rem; font-size: 1.3rem; }
+#result h3 { margin: 1rem 0 .5rem; font-size: 1rem; }
+.meta { font-size: .85rem; color: #5b6578; margin: 0 0 .5rem; }
+.rides { display: flex; flex-wrap: wrap; gap: .4rem; }
+.badge { color: #fff; font-weight: 600; font-size: .8rem; padding: .25rem .6rem; border-radius: 999px; }
+.steps { padding-left: 1.2rem; margin: 0 0 1rem; }
+.steps li { margin-bottom: .7rem; }
+.steps strong { display: block; }
+.steps span { font-size: .9rem; color: #3f485a; }
+.secondary { width: 100%; padding: .6rem; border: 1px solid #c9ceda; border-radius: 8px; background: #fff; cursor: pointer; font-size: .95rem; }
+.pin { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-weight: 700; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.pin.food { background: #dc2626; } .pin.tourism { background: #1d4ed8; } .pin.photo { background: #7c3aed; }
+.pin.you { background: #16a34a; } .pin.metro { background: #1d2433; font-size: .75rem; }
+@media (max-width: 720px) {
+  .app { flex-direction: column-reverse; }
+  .panel { width: 100%; height: 50vh; border-right: 0; border-top: 1px solid #e3e6ec; }
+  #map { height: 50vh; flex: none; }
 }
+.tips { padding-left: 1.2rem; margin: 0 0 1rem; font-size: .9rem; color: #3f485a; }
+.filters { display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
+.filters .pick { flex: 1; margin-bottom: 0; }
+.check { display: flex; align-items: center; gap: .4rem; font-weight: 600; padding-bottom: .6rem; white-space: nowrap; }
+.dest-img { display: block; width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
+#dest-yelp a { color: #c41200; }

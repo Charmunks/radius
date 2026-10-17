@@ -1,5 +1,53 @@
 {% extends "layouts/base.njk" %}
 
+{% block title %}yelps · DC adventure{% endblock %}
+
 {% block content %}
-  <h1>{{ message }}</h1>
+<main class="app">
+  <aside class="panel">
+    <h1>DC Adventure</h1>
+    <p class="sub">Tell us what you're into and we'll pick one place and show you exactly how to get there by Metro.</p>
+
+    <label class="pick">What are you in the mood for?
+      <select id="interest">
+        <option value="food">🍔 Food</option>
+        <option value="tourism">🏛️ Tourism</option>
+        <option value="photo">📸 Photo ops</option>
+      </select>
+    </label>
+
+    <div class="filters">
+      <label class="pick">Price
+        <select id="price">
+          <option value="">Any</option>
+          <option value="1">$</option>
+          <option value="2">$$</option>
+          <option value="3">$$$</option>
+          <option value="4">$$$$</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="open-now"> Open now</label>
+    </div>
+
+    <button id="go">Use my location &amp; go</button>
+    <p id="status" role="status"></p>
+    <section id="result" hidden>
+      <img id="dest-img" class="dest-img" alt="" hidden>
+      <h2 id="dest-name"></h2>
+      <p id="dest-meta" class="meta"></p>
+      <p id="dest-yelp" class="meta" hidden></p>
+      <p id="dest-blurb"></p>
+      <p id="dest-source" class="meta" hidden></p>
+      <div id="rides" class="rides"></div>
+      <h3>How to get there</h3>
+      <ol id="steps" class="steps"></ol>
+      <h3>Little tips</h3>
+      <ul id="tips" class="tips"></ul>
+      <button id="reroll" class="secondary">Not feeling it? Pick another</button>
+    </section>
+  </aside>
+  <div id="map"></div>
+</main>
 {% endblock %}
+
+{% block scripts %}<script src="/public/app.js"></script>{% endblock %}
