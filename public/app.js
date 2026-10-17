@@ -40,19 +40,33 @@ function render(a) {
   const dest = L.marker([d.lat, d.lng], { icon: pin(d.category, "★") }).bindPopup(`<strong>${esc(d.name)}</strong>`).addTo(layer);
 
   const points = [start, [d.lat, d.lng]];
+  // Paths come back null when the router was unreachable, so fall back to a straight line.
+  const walk = (path, from, to) => {
+    const line = path ?? [from, to];
+    L.polyline(line, { className: "route-walk", weight: 4, dashArray: "2 8", lineCap: "round" }).addTo(layer);
+    points.push(...line);
+  };
   const metro = a.mode === "transit" && !a.walkOnly && !a.noMetro;
   if (metro) {
     // walk to the station, ride, then walk to the destination
-    const ridePath = a.ridePath;
-    L.polyline([start, a.origin.coords], { className: "route-walk", weight: 3, dashArray: "4 6" }).addTo(layer);
-    L.polyline(ridePath, a.rides[0]?.color ? { color: a.rides[0].color, weight: 5 } : { className: "route-ride", weight: 5 }).addTo(layer);
-    L.polyline([a.destStation.coords, [d.lat, d.lng]], { className: "route-walk", weight: 3, dashArray: "4 6" }).addTo(layer);
+    walk(a.walkPaths?.toStation, start, a.origin.coords);
+    for (const r of a.rides) {
+      // A light casing underneath keeps pale lines like Silver and Yellow readable on the map.
+      L.polyline(r.path, { className: "route-casing", weight: 12, lineCap: "round", lineJoin: "round" }).addTo(layer);
+      L.polyline(r.path, { color: r.color, weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).bindTooltip(`${esc(r.line)} Line`).addTo(layer);
+      points.push(...r.path);
+    }
+    walk(a.walkPaths?.fromStation, a.destStation.coords, [d.lat, d.lng]);
     L.marker(a.origin.coords, { icon: pin("metro", "M") }).bindPopup(`Board: ${esc(a.origin.station)}`).addTo(layer);
     L.marker(a.destStation.coords, { icon: pin("metro", "M") }).bindPopup(`Get off: ${esc(a.destStation.name)}`).addTo(layer);
-    points.push(a.origin.coords, a.destStation.coords);
+  } else if (a.mode === "driving") {
+    const line = a.path ?? [start, [d.lat, d.lng]];
+    L.polyline(line, { className: "route-drive", weight: 5, lineCap: "round", lineJoin: "round", ...(a.path ? {} : { dashArray: "4 6" }) }).addTo(layer);
+    points.push(...line);
+  } else if (a.noMetro) {
+    L.polyline([start, [d.lat, d.lng]], { className: "route-ride", weight: 3, dashArray: "4 6" }).addTo(layer);
   } else {
-    const className = a.mode === "driving" ? "route-drive" : a.noMetro ? "route-ride" : "route-walk";
-    L.polyline([start, [d.lat, d.lng]], { className, weight: 3, dashArray: "4 6" }).addTo(layer);
+    walk(a.path, start, [d.lat, d.lng]);
   }
   map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
   dest.openPopup();
@@ -134,6 +148,7 @@ async function fetchAdventure(reroll) {
       price: $("price").value,
       open_now: $("open-now").checked,
       mode: $("mode").value,
+      max_minutes: $("max-minutes").value,
     });
     const res = await fetch(`/api/adventure?${qs}`);
     if (!res.ok) {

@@ -48,6 +48,7 @@ h1 { margin: 0; font-size: 1.5rem; }
 .walk { color: var(--green); } .drive { color: var(--blue); }
 /* Leaflet sets stroke as an attribute, so these rules win over it. */
 .route-walk { stroke: var(--green); } .route-drive { stroke: var(--blue); } .route-ride { stroke: var(--text); }
+.route-casing { stroke: var(--base); }
 @media (max-width: 720px) {
   .app { flex-direction: column-reverse; }
   .panel { width: 100%; height: 50vh; border-right: 0; border-top: 1px solid var(--surface0); }
@@ -61,6 +62,7 @@ h1 { margin: 0; font-size: 1.5rem; }
 .check { display: flex; align-items: center; gap: .4rem; font-weight: 600; padding-bottom: .6rem; white-space: nowrap; }
 .check input { accent-color: var(--blue); }
 .dest-img { display: block; width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
+.dest-img[hidden] { display: none; }
 #dest-fsq a { color: var(--blue); }
 .directions { display: block; padding: .7rem; margin: 0 0 1rem; text-align: center; font-weight: 600; text-decoration: none; border-radius: 8px; background: var(--blue); color: var(--base); }
 .install { margin: 0 0 1rem; padding: .75rem; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); font-size: .9rem; }

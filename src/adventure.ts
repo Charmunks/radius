@@ -1,4 +1,5 @@
-import { lines, stations, type Line } from "./metro";
+import { lines, stations, trackBetween, type Line } from "./metro";
+import { osmRoute } from "./osm-route";
 import { CATEGORIES, type Category, type Place } from "./places";
 import { searchPlaces, type SearchOptions } from "./foursquare";
 import { websiteImage } from "./website-image";
@@ -9,6 +10,10 @@ const MIN_RESULTS = 5; // below this, widen the search
 const MAX_STATION_KM = 2; // routing only covers places this close to a Metro station
 const METRO_AREA_KM = 5; // users further than this from any station get Google Maps transit instead
 const DISTANCE_PENALTY = 2; // relevance places lost per km from the user
+const DRIVE_KMH = 30; // city driving average
+const DRIVE_OVERHEAD_MIN = 5; // parking, getting to the car
+const TRANSIT_KMH = 20; // door-to-door transit speed outside the Metro area
+const TRANSIT_WAIT_MIN = 5;
 const TOP_N = 5;
 const PHOTO_CHECK_N = 10; // how many top candidates to look up website photos for
 
@@ -46,6 +51,11 @@ export function parseInterests(raw: string | undefined): Category[] {
 }
 
 const walkMinutes = (km: number) => Math.max(1, Math.round((km / WALK_KMH) * 60));
+
+export const parseMaxMinutes = (raw: string | undefined) => {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
 
 export function nearestStation(lat: number, lng: number) {
   let best = "";
@@ -148,6 +158,19 @@ function steps(startKm: number, boardAt: string, legs: Leg[], dest: Place, final
   return out;
 }
 
+// Rough door-to-door minutes for the chosen mode, used only to enforce the user's time limit.
+function travelMinutes(lat: number, lng: number, p: Place, km: number, mode: TravelMode, metro: boolean) {
+  if (mode === "walking") return walkMinutes(km);
+  if (mode === "driving") return Math.round((km / DRIVE_KMH) * 60) + DRIVE_OVERHEAD_MIN;
+  if (!metro) return Math.round((km / TRANSIT_KMH) * 60) + TRANSIT_WAIT_MIN;
+  const origin = nearestStation(lat, lng);
+  const dest = nearestStation(p.lat, p.lng);
+  const legs = origin.name === dest.name ? [] : route(origin.name, dest.name);
+  const ride = legs.reduce((sum, l) => sum + l.stops * MINUTES_PER_STOP, 0) + (legs.length ? TRANSIT_WAIT_MIN : 0);
+  const viaTrain = walkMinutes(origin.km) + ride + walkMinutes(dest.km);
+  return Math.min(viaTrain, walkMinutes(km));
+}
+
 interface Candidate extends Place {
   km: number;
   rank: number; // position in Foursquare's relevance order for its search
@@ -157,7 +180,7 @@ interface Candidate extends Place {
 // search when the near one leaves too few. Returns "unavailable" when Foursquare
 // couldn't be reached at all.
 async function getCandidates(
-  lat: number, lng: number, interests: Category[], exclude: string[], opts: SearchOptions, mode: TravelMode,
+  lat: number, lng: number, interests: Category[], exclude: string[], opts: SearchOptions, mode: TravelMode, maxMinutes?: number,
 ): Promise<Candidate[] | "unavailable"> {
   const metro = mode === "transit" && nearestStation(lat, lng).km <= METRO_AREA_KM;
   const covered = (p: Place) => !metro || nearestStation(p.lat, p.lng).km <= MAX_STATION_KM;
@@ -172,7 +195,9 @@ async function getCandidates(
       places?.forEach((p, rank) => {
         if (found.has(p.id) || exclude.includes(p.id) || !covered(p)) return;
         // Wide-pass results rank below everything from the near pass.
-        found.set(p.id, { ...p, km: haversineKm(lat, lng, p.lat, p.lng), rank: rank + i * 100 });
+        const km = haversineKm(lat, lng, p.lat, p.lng);
+        if (maxMinutes && travelMinutes(lat, lng, p, km, mode, metro) > maxMinutes) return;
+        found.set(p.id, { ...p, km, rank: rank + i * 100 });
       });
     }
     if (found.size >= MIN_RESULTS) break;
@@ -190,9 +215,9 @@ const score = (p: Candidate) => -(p.rank + DISTANCE_PENALTY * p.km);
 // Transit gets step-by-step Metro directions (or a walking link if the place is close);
 // walking and driving get a Google Maps link.
 export async function pickAdventure(
-  lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: SearchOptions = {}, mode: TravelMode = "transit",
+  lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: SearchOptions = {}, mode: TravelMode = "transit", maxMinutes?: number,
 ) {
-  const found = await getCandidates(lat, lng, interests, exclude, opts, mode);
+  const found = await getCandidates(lat, lng, interests, exclude, opts, mode, maxMinutes);
   if (found === "unavailable") return found;
   const candidates = found.sort((a, b) => score(b) - score(a)).slice(0, PHOTO_CHECK_N);
   if (!candidates.length) return null;
@@ -201,6 +226,9 @@ export async function pickAdventure(
   const pool = (withPhotos.length ? withPhotos : candidates).slice(0, TOP_N);
   const { km: directKm, rank: _rank, ...dest } = pool[Math.floor(Math.random() * pool.length)]!;
 
+  const here: [number, number] = [lat, lng];
+  const there: [number, number] = [dest.lat, dest.lng];
+
   if (mode !== "transit") {
     return {
       mode,
@@ -208,6 +236,7 @@ export async function pickAdventure(
       directKm: +directKm.toFixed(2),
       walkMinutes: walkMinutes(directKm),
       directionsUrl: directionsUrl(lat, lng, dest, mode),
+      path: await osmRoute(here, there, mode),
       steps: [],
     };
   }
@@ -233,8 +262,13 @@ export async function pickAdventure(
   // Close enough that a train would be silly.
   const walkOnly = directKm < 0.8 || (origin.name === destSt.name && directKm < 1.2);
 
-  const ridePath: [number, number][] = [stations[origin.name]!];
-  for (const l of legs) ridePath.push(stations[l.to] ?? destCoords);
+  // Rough street-following paths for the walking parts; the map falls back to straight lines.
+  const [walkPath, toStationPath, fromStationPath] = walkOnly
+    ? [await osmRoute(here, there, "walking"), null, null]
+    : [null, ...(await Promise.all([
+      osmRoute(here, stations[origin.name]!, "walking"),
+      osmRoute(destCoords, there, "walking"),
+    ]))];
 
   return {
     mode,
@@ -246,7 +280,8 @@ export async function pickAdventure(
     directionsUrl: walkOnly ? directionsUrl(lat, lng, dest, "walking") : undefined,
     origin: { station: origin.name, km: +origin.km.toFixed(2), coords: stations[origin.name]! },
     destStation: { name: destSt.name, coords: destCoords },
-    ridePath,
+    path: walkPath,
+    walkPaths: { toStation: toStationPath, fromStation: fromStationPath },
     rides: legs.map((l) => ({
       line: l.line.name,
       color: l.line.color,
@@ -255,6 +290,7 @@ export async function pickAdventure(
       towards: l.towards,
       stops: l.stops,
       minutes: l.stops * MINUTES_PER_STOP,
+      path: trackBetween(l.line, l.from, l.to),
     })),
     steps: walkOnly
       ? [{ title: `Walk to ${dest.name}`, detail: `It's only about ${walkMinutes(directKm)} minutes on foot, so skip the train. Use the Google Maps link below for walking directions.` }]

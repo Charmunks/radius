@@ -1,3 +1,5 @@
+import tracks from "./metro-tracks.json";
+
 export interface Line {
   name: string;
   color: string;
@@ -137,3 +139,42 @@ export const stations: Record<string, [number, number]> = {
   "Woodley Park-Zoo": [38.9251, -77.0524],
 };
 
+
+type LatLng = [number, number];
+
+// Track geometry for each line, ordered from ends[0] to ends[1]. From DC Open Data's
+// "Metro Lines (Regional)" layer, simplified to about 5 m.
+const trackCoords = tracks as unknown as Record<string, LatLng[]>;
+
+// Where a point lands on a track: the segment it falls on and the snapped point.
+function snap(track: LatLng[], [lat, lng]: LatLng) {
+  const kx = Math.cos((lat * Math.PI) / 180); // squash longitude so distances are roughly true
+  let best = { seg: 0, t: 0, point: track[0]!, d: Infinity };
+  for (let i = 0; i < track.length - 1; i++) {
+    const [aLat, aLng] = track[i]!;
+    const [bLat, bLng] = track[i + 1]!;
+    const dx = (bLng - aLng) * kx, dy = bLat - aLat;
+    const len = dx * dx + dy * dy;
+    const t = len ? Math.max(0, Math.min(1, (((lng - aLng) * kx) * dx + (lat - aLat) * dy) / len)) : 0;
+    const point: LatLng = [+(aLat + t * (bLat - aLat)).toFixed(5), +(aLng + t * (bLng - aLng)).toFixed(5)];
+    const d = ((point[1] - lng) * kx) ** 2 + (point[0] - lat) ** 2;
+    if (d < best.d) best = { seg: i, t, point, d };
+  }
+  return best;
+}
+
+// The stretch of real track a train runs along between two stations on a line.
+export function trackBetween(line: Line, from: string, to: string): LatLng[] {
+  const track = trackCoords[line.name];
+  const a = stations[from]!;
+  const b = stations[to]!;
+  if (!track) return [a, b];
+  const sa = snap(track, a);
+  const sb = snap(track, b);
+  const forward = sa.seg < sb.seg || (sa.seg === sb.seg && sa.t <= sb.t);
+  const [lo, hi] = forward ? [sa, sb] : [sb, sa];
+  const path = [lo.point, ...track.slice(lo.seg + 1, hi.seg + 1), hi.point];
+  if (!forward) path.reverse();
+  // Station coordinates sit a little off the track, so join them on to meet the markers.
+  return [a, ...path, b];
+}

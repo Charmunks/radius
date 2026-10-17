@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { staticPlugin } from "@elysiajs/static";
 import nunjucks from "nunjucks";
-import { parseInterests, parseMode, pickAdventure } from "./adventure";
+import { parseInterests, parseMaxMinutes, parseMode, pickAdventure } from "./adventure";
 
 const env = nunjucks.configure("views", {
   autoescape: true,
@@ -30,7 +30,7 @@ const app = new Elysia()
     const adventure = await pickAdventure(lat, lng, parseInterests(query.interests), exclude, {
       openNow: query.open_now === "true",
       price,
-    }, parseMode(query.mode));
+    }, parseMode(query.mode), parseMaxMinutes(query.max_minutes));
     if (adventure === "unavailable") return new Response(JSON.stringify({ error: "Foursquare is unavailable right now. Try again in a minute." }), { status: 503, headers: { "Content-Type": "application/json" } });
     if (!adventure) return new Response(JSON.stringify({ error: "No matching places" }), { status: 404, headers: { "Content-Type": "application/json" } });
     return adventure;
