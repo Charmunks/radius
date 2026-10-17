@@ -5,7 +5,10 @@
 {% block content %}
 <main class="app">
   <aside class="panel">
-    <h1>Radius</h1>
+    <div class="title-row">
+      <h1>Radius</h1>
+      <button id="theme-toggle" class="theme-toggle" type="button"></button>
+    </div>
     <p class="sub">Tell us what you're into and we'll pick one place and show you exactly how to get there.</p>
 
     <label class="pick">What are you in the mood for?
@@ -49,8 +52,6 @@
       <h3>How to get there</h3>
       <ol id="steps" class="steps"></ol>
       <p id="directions" hidden><a id="directions-link" class="directions" target="_blank" rel="noopener">Open directions in Google Maps</a></p>
-      <h3 id="tips-heading">Little tips</h3>
-      <ul id="tips" class="tips"></ul>
       <button id="reroll" class="secondary">Not feeling it? Pick another</button>
     </section>
   </aside>

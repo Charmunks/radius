@@ -187,7 +187,6 @@ test("walking and driving give a Google Maps link instead of Metro steps", async
     if (!result || result === "unavailable") throw new Error("expected a result");
     expect(result.mode).toBe(mode);
     expect(result.steps).toEqual([]);
-    expect(result.tips).toEqual([]);
     if (!("directionsUrl" in result)) throw new Error("expected a directions link");
     const url = new URL(result.directionsUrl);
     expect(url.origin + url.pathname).toBe("https://www.google.com/maps/dir/");
@@ -195,6 +194,17 @@ test("walking and driving give a Google Maps link instead of Metro steps", async
     expect(url.searchParams.get("origin")).toBe(start().join(","));
     expect(url.searchParams.get("destination")).toBe(`${result.destination.name}, 1 Test St, Washington, DC`);
   }
+});
+
+test("transit links to Google Maps walking directions when it says to walk", async () => {
+  stub(many(6));
+  const result = await pickAdventure(...start(), ["food"]);
+  if (!result || result === "unavailable" || result.mode !== "transit") throw new Error("expected a transit result");
+  expect(result.walkOnly).toBe(true);
+  if (!result.directionsUrl) throw new Error("expected a directions link");
+  const url = new URL(result.directionsUrl);
+  expect(url.searchParams.get("travelmode")).toBe("walking");
+  expect(url.searchParams.get("origin")).toBe(start().join(","));
 });
 
 test("only transit needs the place to be near a Metro station", async () => {

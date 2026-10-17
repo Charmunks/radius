@@ -137,11 +137,3 @@ export const stations: Record<string, [number, number]> = {
   "Woodley Park-Zoo": [38.9251, -77.0524],
 };
 
-export const tips = [
-  "Stand on the right side of escalators and walk on the left.",
-  "Let people get off the train before you get on.",
-  "Check the sign above the platform to confirm it's your train.",
-  "Hold on to your card until you've tapped out of the station.",
-  "Trains run less often at night and on weekends, so check the platform board for the next one.",
-  "If you're lost, ask a station manager. They wear a vest and stand near the faregates.",
-];

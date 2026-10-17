@@ -1,4 +1,4 @@
-import { lines, stations, tips, type Line } from "./metro";
+import { lines, stations, type Line } from "./metro";
 import { CATEGORIES, type Category, type Place } from "./places";
 import { searchPlaces, type SearchOptions } from "./foursquare";
 import { websiteImage } from "./website-image";
@@ -185,7 +185,8 @@ const score = (p: Candidate) => -(p.rank + DISTANCE_PENALTY * p.km);
 // Choose one destination near the user, randomly among the top few by score so repeat
 // requests give variety. Places whose website has a photo are preferred; the rest are
 // only used when none of the top candidates have one. `exclude` lets the UI re-roll.
-// Transit gets step-by-step Metro directions; walking and driving get a Google Maps link.
+// Transit gets step-by-step Metro directions (or a walking link if the place is close);
+// walking and driving get a Google Maps link.
 export async function pickAdventure(
   lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: SearchOptions = {}, mode: TravelMode = "transit",
 ) {
@@ -206,7 +207,6 @@ export async function pickAdventure(
       walkMinutes: walkMinutes(directKm),
       directionsUrl: directionsUrl(lat, lng, dest, mode),
       steps: [],
-      tips: [],
     };
   }
 
@@ -227,6 +227,8 @@ export async function pickAdventure(
     directKm: +directKm.toFixed(2),
     walkOnly,
     walkMinutes: walkMinutes(directKm),
+    // When it's not worth taking the train, hand off to Google Maps walking directions.
+    directionsUrl: walkOnly ? directionsUrl(lat, lng, dest, "walking") : undefined,
     origin: { station: origin.name, km: +origin.km.toFixed(2), coords: stations[origin.name]! },
     destStation: { name: destSt.name, coords: destCoords },
     ridePath,
@@ -239,9 +241,8 @@ export async function pickAdventure(
       stops: l.stops,
       minutes: l.stops * MINUTES_PER_STOP,
     })),
-    tips,
     steps: walkOnly
-      ? [{ title: `Walk to ${dest.name}`, detail: `It's only about ${walkMinutes(directKm)} minutes on foot, so skip the train. Follow your phone's walking directions.` }]
+      ? [{ title: `Walk to ${dest.name}`, detail: `It's only about ${walkMinutes(directKm)} minutes on foot, so skip the train. Use the Google Maps link below for walking directions.` }]
       : steps(origin.km, origin.name, legs, dest, destSt.km),
   };
 }

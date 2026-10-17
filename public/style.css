@@ -1,38 +1,71 @@
+/* Catppuccin Latte (light) and Mocha (dark): https://catppuccin.com/palette/ */
+:root {
+  color-scheme: light;
+  --base: #eff1f5; --mantle: #e6e9ef; --crust: #dce0e8;
+  --text: #4c4f69; --subtext1: #5c5f77; --subtext0: #6c6f85;
+  --overlay0: #9ca0b0; --surface1: #bcc0cc; --surface0: #ccd0da;
+  --blue: #1e66f5; --green: #40a02b; --red: #d20f39; --mauve: #8839ef; 
+  --rosewater: #1e66f5;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --base: #1e1e2e; --mantle: #181825; --crust: #11111b;
+  --text: #cdd6f4; --subtext1: #bac2de; --subtext0: #a6adc8;
+  --overlay0: #6c7086; --surface1: #45475a; --surface0: #313244;
+  --blue: #89b4fa; --green: #a6e3a1; --red: #f38ba8; --mauve: #cba6f7;
+  --rosewater: #f5e0dc;
+}
+
 * { box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; margin: 0; color: #1d2433; }
+body { font-family: system-ui, sans-serif; margin: 0; color: var(--text); background: var(--base); }
 .app { display: flex; height: 100vh; }
-.panel { width: 360px; max-width: 100%; padding: 1.25rem; overflow-y: auto; border-right: 1px solid #e3e6ec; }
-#map { flex: 1; }
-h1 { margin: 0 0 .25rem; font-size: 1.5rem; }
-.sub { margin: 0 0 1rem; color: #5b6578; }
+.panel { width: 360px; max-width: 100%; padding: 1.25rem; overflow-y: auto; background: var(--base); border-right: 1px solid var(--surface0); }
+#map { flex: 1; background: var(--mantle); }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: 0 0 .25rem; }
+h1 { margin: 0; font-size: 1.5rem; }
+.theme-toggle { width: 2.25rem; height: 2.25rem; padding: 0; font-size: 1.1rem; line-height: 1; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); color: var(--text); cursor: pointer; }
+.theme-toggle:hover { background: var(--surface0); }
+.sub { margin: 0 0 1rem; color: var(--subtext0); }
 .pick { display: block; margin-bottom: 1rem; font-weight: 600; }
-.pick select { display: block; width: 100%; margin-top: .4rem; padding: .6rem; font: inherit; font-weight: 400; border: 1px solid #c9ceda; border-radius: 8px; background: #fff; }
-#go { width: 100%; padding: .7rem; font-size: 1rem; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; cursor: pointer; }
+.pick select { display: block; width: 100%; margin-top: .4rem; padding: .6rem; font: inherit; font-weight: 400; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); color: var(--text); }
+#go { width: 100%; padding: .7rem; font-size: 1rem; border: 0; border-radius: 8px; background: var(--rosewater); color: var(--base); cursor: pointer; }
 #go:disabled { opacity: .6; cursor: wait; }
-#status { min-height: 1.2em; color: #5b6578; font-size: .9rem; }
+#status { min-height: 1.2em; color: var(--subtext0); font-size: .9rem; }
 #result h2 { margin: 1rem 0 .2rem; font-size: 1.3rem; }
 #result h3 { margin: 1rem 0 .5rem; font-size: 1rem; }
-.meta { font-size: .85rem; color: #5b6578; margin: 0 0 .5rem; }
+.meta { font-size: .85rem; color: var(--subtext0); margin: 0 0 .5rem; }
 .rides { display: flex; flex-wrap: wrap; gap: .4rem; }
-.ride-info { flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: .5rem .75rem; font-size: .9rem; }
+.ride-info { flex: 1; border: 1px solid var(--surface0); border-radius: 8px; padding: .5rem .75rem; font-size: .9rem; background: var(--mantle); }
 .ride-info p { margin: .15rem 0; }
 .steps { padding-left: 1.2rem; margin: 0 0 1rem; }
 .steps li { margin-bottom: .7rem; }
 .steps strong { display: block; }
-.steps span { font-size: .9rem; color: #3f485a; }
-.secondary { width: 100%; padding: .6rem; border: 1px solid #c9ceda; border-radius: 8px; background: #fff; cursor: pointer; font-size: .95rem; }
-.pin { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font-weight: 700; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
-.pin.food { background: #dc2626; } .pin.tourism { background: #1d4ed8; } .pin.photo { background: #7c3aed; }
-.pin.you { background: #16a34a; } .pin.metro { background: #1d2433; font-size: .75rem; }
+.steps span { font-size: .9rem; color: var(--subtext1); }
+.secondary { width: 100%; padding: .6rem; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); color: var(--text); cursor: pointer; font-size: .95rem; }
+.pin { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--base); font-weight: 700; border: 2px solid var(--base); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.pin.food { background: var(--red); } .pin.tourism { background: var(--blue); } .pin.photo { background: var(--mauve); }
+.pin.you { background: var(--green); } .pin.metro { background: var(--text); font-size: .75rem; }
+.walk { color: var(--green); } .drive { color: var(--blue); }
+/* Leaflet sets stroke as an attribute, so these rules win over it. */
+.route-walk { stroke: var(--green); } .route-drive { stroke: var(--blue); } .route-ride { stroke: var(--text); }
 @media (max-width: 720px) {
   .app { flex-direction: column-reverse; }
-  .panel { width: 100%; height: 50vh; border-right: 0; border-top: 1px solid #e3e6ec; }
+  .panel { width: 100%; height: 50vh; border-right: 0; border-top: 1px solid var(--surface0); }
   #map { height: 50vh; flex: none; }
 }
-.tips { padding-left: 1.2rem; margin: 0 0 1rem; font-size: .9rem; color: #3f485a; }
 .filters { display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
 .filters .pick { flex: 1; margin-bottom: 0; }
 .check { display: flex; align-items: center; gap: .4rem; font-weight: 600; padding-bottom: .6rem; white-space: nowrap; }
+.check input { accent-color: var(--blue); }
 .dest-img { display: block; width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
-#dest-fsq a { color: #3333ff; }
-.directions { display: block; padding: .7rem; margin: 0 0 1rem; text-align: center; font-weight: 600; text-decoration: none; border-radius: 8px; background: #1d4ed8; color: #fff; }
+#dest-fsq a { color: var(--blue); }
+.directions { display: block; padding: .7rem; margin: 0 0 1rem; text-align: center; font-weight: 600; text-decoration: none; border-radius: 8px; background: var(--blue); color: var(--base); }
+
+/* Leaflet chrome */
+.leaflet-container { font: inherit; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--base); color: var(--text); }
+.leaflet-bar a, .leaflet-bar a:hover { background: var(--mantle); color: var(--text); border-bottom-color: var(--surface0); }
+.leaflet-control-attribution.leaflet-control { background: color-mix(in srgb, var(--base) 80%, transparent); color: var(--subtext0); }
+.leaflet-control-attribution a { color: var(--blue); }
+/* OSM has no dark tiles, so darken the light ones in Mocha. */
+:root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
