@@ -52,6 +52,9 @@ h1 { margin: 0; font-size: 1.5rem; }
   .app { flex-direction: column-reverse; }
   .panel { width: 100%; height: 50vh; border-right: 0; border-top: 1px solid var(--surface0); }
   #map { height: 50vh; flex: none; }
+  /* Until we know where you are, the picker gets the whole screen. */
+  .app:not(.located) .panel { height: 100%; border-top: 0; }
+  .app:not(.located) #map { display: none; }
 }
 .filters { display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
 .filters .pick { flex: 1; margin-bottom: 0; }
@@ -60,6 +63,11 @@ h1 { margin: 0; font-size: 1.5rem; }
 .dest-img { display: block; width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
 #dest-fsq a { color: var(--blue); }
 .directions { display: block; padding: .7rem; margin: 0 0 1rem; text-align: center; font-weight: 600; text-decoration: none; border-radius: 8px; background: var(--blue); color: var(--base); }
+.install { margin: 0 0 1rem; padding: .75rem; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); font-size: .9rem; }
+.install p { margin: 0 0 .6rem; }
+.install-actions { display: flex; gap: .5rem; }
+.install-actions button { flex: 1; padding: .5rem; font-size: .9rem; border-radius: 8px; cursor: pointer; }
+#install-go { border: 0; background: var(--rosewater); color: var(--base); font-weight: 600; }
 
 /* Leaflet chrome */
 .leaflet-container { font: inherit; }

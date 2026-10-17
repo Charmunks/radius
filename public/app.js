@@ -96,6 +96,8 @@ function render(a) {
   $("directions").hidden = !directions;
   if (directions) $("directions-link").href = directions;
   $("result").hidden = false;
+  // On mobile the panel is short, so bring the place details into view.
+  if (matchMedia("(max-width: 720px)").matches) $("result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function fetchAdventure(reroll) {
@@ -109,6 +111,9 @@ async function fetchAdventure(reroll) {
     status.textContent = "Finding you…";
     try {
       start = await getLocation();
+      // On mobile the map stays hidden until now, so Leaflet needs to re-measure it.
+      document.querySelector(".app").classList.add("located");
+      map.invalidateSize();
     } catch (err) {
       start = null;
       status.textContent = err.message;
@@ -165,3 +170,42 @@ $("theme-toggle").addEventListener("click", () => {
   syncToggle();
 });
 syncToggle();
+
+// Suggest adding to the home screen on phones, unless it's already installed or was dismissed.
+// Android Chrome gives us a real install prompt; iOS Safari only allows the Share menu route.
+(() => {
+  const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem("install-dismissed") === "1"; } catch {}
+  if (installed || dismissed || !matchMedia("(max-width: 720px)").matches) return;
+
+  const box = $("install");
+  const hide = () => { box.hidden = true; };
+  $("install-dismiss").addEventListener("click", () => {
+    hide();
+    try { localStorage.setItem("install-dismissed", "1"); } catch {}
+  });
+
+  let deferred = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferred = e;
+    $("install-text").textContent = "Add Radius to your home screen for one-tap access.";
+    $("install-go").hidden = false;
+    box.hidden = false;
+  });
+  $("install-go").addEventListener("click", async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice;
+    deferred = null;
+    hide();
+  });
+  window.addEventListener("appinstalled", hide);
+
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) {
+    $("install-text").textContent = "Add Radius to your home screen: tap the Share button, then “Add to Home Screen”.";
+    box.hidden = false;
+  }
+})();
