@@ -83,8 +83,9 @@ button:disabled { opacity: .6; cursor: wait; }
 .muted { padding: .5rem .6rem; color: var(--subtext0); }
 .link { padding: 0; margin-top: .4rem; border: 0; background: none; color: var(--blue); font: inherit; font-weight: 400; font-size: .9rem; cursor: pointer; text-align: left; }
 .app.picking #map { cursor: crosshair; outline: 3px solid var(--blue); outline-offset: -3px; }
-.surprise { margin-top: .5rem; }
-.mystery { padding: .6rem 0 0; font-weight: 400; font-size: .9rem; white-space: normal; }
+.surprise { margin-top: .6rem; padding: .7rem; font-size: 1rem; }
+.mystery { align-items: flex-start; gap: .5rem; padding: .8rem .2rem 0; font-weight: 400; font-size: .9rem; line-height: 1.35; white-space: normal; color: var(--subtext1); }
+.mystery input { flex: none; margin: .15rem 0 0; }
 .actions { display: flex; gap: .4rem; margin: .5rem 0; }
 .actions[hidden], .rate[hidden] { display: none; }
 .actions .secondary { flex: 1; padding: .5rem; font-size: .9rem; }
@@ -117,3 +118,4 @@ button:disabled { opacity: .6; cursor: wait; }
 .leaflet-control-attribution a { color: var(--blue); }
 /* OSM has no dark tiles, so darken the light ones in Mocha. */
 :root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6); }
+.ride-info .alt { font-size: .8rem; opacity: .85; }

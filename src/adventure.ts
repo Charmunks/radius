@@ -108,9 +108,27 @@ function route(from: string, to: string): Leg[] {
   return best;
 }
 
+// Other lines that make exactly the same stops between the same two stations, so the rider can
+// hop on whichever train comes first.
+function alternatives(l: Leg) {
+  return lines.flatMap((other) => {
+    if (other === l.line) return [];
+    const alt = leg(other, l.from, l.to);
+    return alt && alt.stopNames.join("|") === l.stopNames.join("|") ? [alt] : [];
+  });
+}
+
+// Every line serving a stretch, listed equally: "Orange Line (New Carrollton) | Blue Line (Largo)".
+function lineChoices(l: Leg, alts: Leg[]) {
+  return [l, ...alts]
+    .sort((x, y) => lines.indexOf(x.line) - lines.indexOf(y.line))
+    .map((x) => `${x.line.name} Line (${x.towards})`)
+    .join(" | ");
+}
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-function steps(startKm: number, boardAt: string, legs: Leg[], dest: Place, finalWalkKm: number) {
+function steps(startKm: number, boardAt: string, legs: Leg[], choices: (string | undefined)[], dest: Place, finalWalkKm: number) {
   const out: { title: string; detail: string }[] = [];
   out.push({
     title: `Walk to ${boardAt}`,
@@ -132,8 +150,10 @@ function steps(startKm: number, boardAt: string, legs: Leg[], dest: Place, final
       detail: `Look for the ${l.line.name} Line (${l.line.colorName}) sign and the direction "${l.towards}". That is the last stop of the train you want. Trains going the other way will say the opposite end.`,
     });
     out.push({
-      title: `Board a train toward ${l.towards}`,
-      detail: `Check the sign above the platform. The train's front screen should say "${l.towards}". Let people get off first, then step on.`,
+      title: choices[i] ? `Board any of these trains: ${choices[i]}` : `Board a train toward ${l.towards}`,
+      detail: choices[i]
+        ? `All of these trains make the same stops, so take whichever arrives first. Check the sign above the platform and the train's front screen for one of the destinations in parentheses. Let people get off first, then step on.`
+        : `Check the sign above the platform. The train's front screen should say "${l.towards}". Let people get off first, then step on.`,
     });
     out.push({
       title: `Ride ${plural(l.stops, "stop")} to ${l.to}`,
@@ -285,6 +305,8 @@ async function planTrip(lat: number, lng: number, dest: Place, directKm: number,
       osmRoute(destCoords, there, "walking"),
     ]))];
 
+  const alts = legs.map(alternatives);
+  const choices = legs.map((l, i) => (alts[i]!.length ? lineChoices(l, alts[i]!) : undefined));
   return {
     mode,
     destination: dest,
@@ -297,7 +319,7 @@ async function planTrip(lat: number, lng: number, dest: Place, directKm: number,
     destStation: { name: destSt.name, coords: destCoords },
     path: walkPath,
     walkPaths: { toStation: toStationPath, fromStation: fromStationPath },
-    rides: legs.map((l) => ({
+    rides: legs.map((l, i) => ({
       line: l.line.name,
       color: l.line.color,
       from: l.from,
@@ -305,10 +327,13 @@ async function planTrip(lat: number, lng: number, dest: Place, directKm: number,
       towards: l.towards,
       stops: l.stops,
       minutes: l.stops * MINUTES_PER_STOP,
+      choices: choices[i],
+      // Every line running this stretch, in the order the map draws them side by side.
+      tracks: lines.filter((x) => x === l.line || alts[i]!.some((a) => a.line === x)).map((x) => ({ line: x.name, color: x.color })),
       path: trackBetween(l.line, l.from, l.to),
     })),
     steps: walkOnly
       ? [{ title: `Walk to ${dest.name}`, detail: `It's only about ${walkMinutes(directKm)} minutes on foot, so skip the train. Use the Google Maps link below for walking directions.` }]
-      : steps(origin.km, origin.name, legs, dest, destSt.km),
+      : steps(origin.km, origin.name, legs, choices, dest, destSt.km),
   };
 }

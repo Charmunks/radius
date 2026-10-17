@@ -61,6 +61,27 @@ function showMap() {
   map.invalidateSize();
 }
 
+// When several lines make the same stops they are listed equally, matching the Board step.
+const rideName = (r) => r.choices
+  ? `<strong>${esc(r.choices)}</strong>`
+  : `<strong style="color:${esc(r.color)}">${esc(r.line)} Line</strong>`;
+
+// Lines sharing track are drawn side by side, one stripe each, like the Metro map. Leaflet can't offset a
+// polyline, so shift each point sideways in screen pixels and redo it whenever the zoom changes.
+const STRIPE_PX = 6;
+let striped = [];
+function offsetPath(path, px) {
+  if (!px) return path;
+  const pts = path.map((p) => map.latLngToLayerPoint(p));
+  return pts.map((p, i) => {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(pts.length - 1, i + 1)];
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    return map.layerPointToLatLng(L.point(p.x - ((b.y - a.y) / len) * px, p.y + ((b.x - a.x) / len) * px));
+  });
+}
+map.on("zoomend", () => striped.forEach(({ poly, path, px }) => poly.setLatLngs(offsetPath(path, px))));
+
 const isMetro = (a) => a.mode === "transit" && !a.walkOnly && !a.noMetro;
 const shareUrl = (d, mode) => `${location.origin}/?${new URLSearchParams({ place: d.id, mode, cat: d.category })}`;
 
@@ -71,6 +92,7 @@ function render(a, mystery = false) {
   const hide = mystery && metro;
   current = { a, mystery: hide };
   layer.clearLayers();
+  striped = [];
   L.marker(start, { icon: pin("you", "★") }).bindPopup(customStart ? "Starting point" : "You are here").addTo(layer);
   const dest = hide ? null : L.marker([d.lat, d.lng], { icon: pin(d.category, "★") }).bindPopup(`<strong>${esc(d.name)}</strong>`).addTo(layer);
 
@@ -87,8 +109,15 @@ function render(a, mystery = false) {
     walk(a.walkPaths?.toStation, start, a.origin.coords);
     for (const r of a.rides) {
       // A light casing underneath keeps pale lines like Silver and Yellow readable on the map.
-      L.polyline(r.path, { className: "route-casing", weight: 12, lineCap: "round", lineJoin: "round" }).addTo(layer);
-      L.polyline(r.path, { color: r.color, weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).bindTooltip(`${esc(r.line)} Line`).addTo(layer);
+      const tracks = r.tracks?.length ? r.tracks : [{ line: r.line, color: r.color }];
+      const width = tracks.length === 1 ? 8 : STRIPE_PX;
+      L.polyline(r.path, { className: "route-casing", weight: width * tracks.length + 4, lineCap: "round", lineJoin: "round" }).addTo(layer);
+      tracks.forEach((t, i) => {
+        const px = (i - (tracks.length - 1) / 2) * width;
+        const poly = L.polyline(offsetPath(r.path, px), { color: t.color, weight: width, opacity: 1, lineCap: "round", lineJoin: "round" })
+          .bindTooltip(`${esc(t.line)} Line`).addTo(layer);
+        if (px) striped.push({ poly, path: r.path, px });
+      });
       points.push(...r.path);
     }
     if (!hide) walk(a.walkPaths?.fromStation, a.destStation.coords, [d.lat, d.lng]);
@@ -139,7 +168,7 @@ function render(a, mystery = false) {
       ? [`<strong class="drive">Drive</strong> · ${a.directKm} km away`]
       : a.noMetro
         ? [`<strong>Transit</strong> · ${a.directKm} km away · check Google Maps for routes`]
-        : a.rides.map((r) => `<strong style="color:${esc(r.color)}">${esc(r.line)} Line</strong> · ${r.stops} ${r.stops === 1 ? "stop" : "stops"} · about ${r.minutes} min`);
+        : a.rides.map((r) => `${rideName(r)} · ${r.stops} ${r.stops === 1 ? "stop" : "stops"} · about ${r.minutes} min`);
   $("rides").innerHTML = `<div class="ride-info">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
   // The last Metro step names the destination, so a mystery trip swaps it for the reveal.
   const steps = hide

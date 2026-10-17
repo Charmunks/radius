@@ -1,0 +1,66 @@
+# Dev stack with hot reload. Run with:
+#   docker compose -f docker-compose.dev.yml up --watch
+# (--watch syncs edits into the container so bun --watch restarts on change)
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://yelps:yelps@postgres:5432/yelps
+      REDIS_URL: redis://redis:6379
+      FOURSQUARE_API_KEY: ${FOURSQUARE_API_KEY:-}
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync
+          path: ./public
+          target: /app/public
+        - action: sync
+          path: ./views
+          target: /app/views
+        - action: sync+restart
+          path: ./drizzle
+          target: /app/drizzle
+        - action: rebuild
+          path: package.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: yelps
+      POSTGRES_PASSWORD: yelps
+      POSTGRES_DB: yelps
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yelps"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
