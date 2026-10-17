@@ -71,11 +71,6 @@ h1 { margin: 0; font-size: 1.5rem; }
 .directions { display: block; padding: .7rem; margin: 0 0 1rem; text-align: center; font-weight: 600; text-decoration: none; border-radius: 8px; background: var(--blue); color: var(--base); }
 button:disabled { opacity: .6; cursor: wait; }
 .hint { font-weight: 400; font-size: .85rem; color: var(--subtext0); }
-.chips-field { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
-.chips-field legend { padding: 0; }
-.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
-.chip { padding: .4rem .75rem; font: inherit; font-weight: 400; font-size: .9rem; border: 1px solid var(--surface1); border-radius: 999px; background: var(--mantle); color: var(--text); cursor: pointer; }
-.chip[aria-pressed="true"] { border-color: var(--rosewater); background: var(--rosewater); color: var(--base); font-weight: 600; }
 .start-row { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; margin-top: .4rem; font-weight: 400; }
 .start-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--subtext1); }
 .start-search { display: flex; gap: .4rem; margin-top: .4rem; }
@@ -101,11 +96,6 @@ button:disabled { opacity: .6; cursor: wait; }
 .mine { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--surface0); }
 .mine summary { font-weight: 600; cursor: pointer; }
 .mine h3 { margin: 1rem 0 .4rem; font-size: 1rem; }
-.passport-head { margin: .75rem 0 .4rem; font-size: .9rem; }
-.stamps { display: flex; flex-wrap: wrap; gap: .35rem; }
-.stamp { padding: .2rem .6rem; border: 2px dashed var(--line, var(--surface1)); border-radius: 6px; font-size: .8rem; color: var(--subtext0); }
-.stamp.got { border-style: solid; background: var(--line, var(--surface0)); color: #fff; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
-.stamp.area { --line: var(--mauve); }
 .place-list { list-style: none; margin: 0; padding: 0; font-size: .9rem; }
 .place-list li { display: flex; flex-direction: column; padding: .35rem 0; }
 .place-list li.muted { padding: 0; }

@@ -5,7 +5,6 @@ import { parseInterests, parseMaxMinutes, parseMode, pickAdventure, planTripTo }
 import { getPlace } from "./foursquare";
 import { geocode } from "./geocode";
 import * as me from "./me";
-import { lines } from "./metro";
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from "./places";
 
 const production = process.env.NODE_ENV === "production";
@@ -45,8 +44,6 @@ const app = new Elysia()
     deviceId(cookie);
     return render("index.njk", {
       categories: CATEGORIES.map((id) => ({ id, label: CATEGORY_LABELS[id] })),
-      // For the passport's line stamps.
-      metroLines: lines.map((l) => ({ name: l.name, color: l.color })),
     });
   })
   // The service worker has to be served from the root to control the whole app.

@@ -31,14 +31,13 @@
       <button id="drop-pin" type="button" class="link">Or drop a pin on the map</button>
     </div>
 
-    <fieldset class="pick chips-field">
-      <legend>What are you in the mood for? <span class="hint">Pick one or more</span></legend>
-      <div id="interests" class="chips">
+    <label class="pick">What are you in the mood for? <span class="hint">Pick one or more</span>
+      <select id="interests" multiple size="6">
         {% for c in categories %}
-        <button type="button" class="chip" data-cat="{{ c.id }}" aria-pressed="{{ 'true' if loop.first else 'false' }}">{{ c.label }}</button>
+        <option value="{{ c.id }}"{% if loop.first %} selected{% endif %}>{{ c.label }}</option>
         {% endfor %}
-      </div>
-    </fieldset>
+      </select>
+    </label>
 
     <label class="pick">How are you getting there?
       <select id="mode">
@@ -101,8 +100,7 @@
     </section>
 
     <details id="mine" class="mine">
-      <summary>My places &amp; passport</summary>
-      <div id="passport" class="passport"></div>
+      <summary>My places</summary>
       <h3>Saved</h3>
       <ul id="saved-list" class="place-list"></ul>
       <h3>Been there</h3>
@@ -111,7 +109,6 @@
   </aside>
   <div id="map"></div>
 </main>
-<script id="metro-lines" type="application/json">{{ metroLines | dump | safe }}</script>
 {% endblock %}
 
 {% block scripts %}<script src="/public/app.js"></script>{% endblock %}

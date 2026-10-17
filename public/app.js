@@ -19,7 +19,6 @@ const store = {
   get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
 };
-const METRO_LINES = JSON.parse($("metro-lines").textContent);
 const LAST_KEY = "last-result";
 const LAST_MAX_AGE_MS = 6 * 60 * 60 * 1000; // show the last pick on open (and offline) for this long
 const ARRIVED_KM = 0.3; // mystery trips reveal themselves this close to the destination station
@@ -203,7 +202,7 @@ async function locate() {
   }
 }
 
-const selectedInterests = () => [...document.querySelectorAll("#interests .chip[aria-pressed='true']")].map((b) => b.dataset.cat);
+const selectedInterests = () => [...$("interests").selectedOptions].map((o) => o.value);
 
 async function fetchAdventure(reroll) {
   const buttons = [$("go"), $("surprise"), $("reroll")];
@@ -303,12 +302,7 @@ $("reveal").addEventListener("click", reveal);
 for (const id of ["mode", "price", "open-now", "max-minutes"]) {
   $(id).addEventListener("change", () => { start = null; });
 }
-$("interests").addEventListener("click", (e) => {
-  const chip = e.target.closest(".chip");
-  if (!chip) return;
-  chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") === "true" ? "false" : "true");
-  start = null;
-});
+$("interests").addEventListener("change", () => { start = null; });
 
 // Starting somewhere other than here: an address search or a pin on the map.
 function setStart(coords, label) {
@@ -445,16 +439,6 @@ $("share").addEventListener("click", async () => {
 });
 
 function renderMine() {
-  const ridden = new Set(mine.visits.flatMap((v) => v.lines));
-  const areas = [...new Set(mine.visits.map((v) => v.place.neighborhood).filter(Boolean))];
-  const total = METRO_LINES.length;
-  const count = METRO_LINES.filter((l) => ridden.has(l.name)).length;
-  $("passport").innerHTML = `
-    <p class="passport-head">${count === total ? `You've ridden every Metro line!` : `You've ridden ${count} of ${total} Metro lines${count ? "!" : "."}`}</p>
-    <div class="stamps">${METRO_LINES.map((l) => `<span class="stamp${ridden.has(l.name) ? " got" : ""}" style="--line:${esc(l.color)}">${esc(l.name)}</span>`).join("")}</div>
-    <p class="passport-head">${areas.length ? `${areas.length} ${areas.length === 1 ? "area" : "areas"} stamped · ${mine.visits.length} ${mine.visits.length === 1 ? "trip" : "trips"}` : "Mark places as “Been there” to fill your passport."}</p>
-    ${areas.length ? `<div class="stamps">${areas.map((n) => `<span class="stamp got area">${esc(n)}</span>`).join("")}</div>` : ""}`;
-
   const mode = $("mode").value;
   const item = (r, extra = "") => {
     const href = `/?${new URLSearchParams({ place: r.placeId, mode, cat: r.place.category })}`;
