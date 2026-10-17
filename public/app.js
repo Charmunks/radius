@@ -14,19 +14,21 @@ const httpsUrl = (u) => {
   try { return new URL(u).protocol === "https:" ? u : null; } catch { return null; }
 };
 
-// Roughly DC plus close suburbs; anyone outside gets a DC start point instead.
-const inDC = (lat, lng) => lat > 38.78 && lat < 39.0 && lng > -77.2 && lng < -76.88;
-
 let start = null;
 let seen = [];
 
 function getLocation() {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error("Your browser doesn't support location."));
     navigator.geolocation.getCurrentPosition(
       (p) => resolve([p.coords.latitude, p.coords.longitude]),
-      () => resolve(null),
-      { timeout: 8000 },
+      (err) => reject(new Error(
+        err.code === err.PERMISSION_DENIED ? "Location access was denied. Allow it in your browser settings and try again."
+          : err.code === err.TIMEOUT ? "Finding your location took too long. Try again."
+          : "Couldn't get your location. Try again.",
+      )),
+      // A fix from the last few minutes is fine, and comes back instantly if the browser has one.
+      { timeout: 20000, maximumAge: 5 * 60 * 1000 },
     );
   });
 }
@@ -38,8 +40,8 @@ function render(a) {
   const dest = L.marker([d.lat, d.lng], { icon: pin(d.category, "★") }).bindPopup(`<strong>${esc(d.name)}</strong>`).addTo(layer);
 
   const points = [start, [d.lat, d.lng]];
-  const transit = a.mode === "transit";
-  if (transit && !a.walkOnly) {
+  const metro = a.mode === "transit" && !a.walkOnly && !a.noMetro;
+  if (metro) {
     // walk to the station, ride, then walk to the destination
     const ridePath = a.ridePath;
     L.polyline([start, a.origin.coords], { className: "route-walk", weight: 3, dashArray: "4 6" }).addTo(layer);
@@ -49,7 +51,7 @@ function render(a) {
     L.marker(a.destStation.coords, { icon: pin("metro", "M") }).bindPopup(`Get off: ${esc(a.destStation.name)}`).addTo(layer);
     points.push(a.origin.coords, a.destStation.coords);
   } else {
-    const className = a.mode === "driving" ? "route-drive" : "route-walk";
+    const className = a.mode === "driving" ? "route-drive" : a.noMetro ? "route-ride" : "route-walk";
     L.polyline([start, [d.lat, d.lng]], { className, weight: 3, dashArray: "4 6" }).addTo(layer);
   }
   map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
@@ -83,12 +85,14 @@ function render(a) {
     ? [`<strong class="walk">Walk</strong> · about ${a.walkMinutes} min`]
     : a.mode === "driving"
       ? [`<strong class="drive">Drive</strong> · ${a.directKm} km away`]
-      : a.rides.map((r) => `<strong style="color:${esc(r.color)}">${esc(r.line)} Line</strong> · ${r.stops} ${r.stops === 1 ? "stop" : "stops"} · about ${r.minutes} min`);
+      : a.noMetro
+        ? [`<strong>Transit</strong> · ${a.directKm} km away · check Google Maps for routes`]
+        : a.rides.map((r) => `<strong style="color:${esc(r.color)}">${esc(r.line)} Line</strong> · ${r.stops} ${r.stops === 1 ? "stop" : "stops"} · about ${r.minutes} min`);
   $("rides").innerHTML = `<div class="ride-info">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
   $("steps").innerHTML = a.steps.map((s) => `<li><strong>${esc(s.title)}</strong><span>${esc(s.detail)}</span></li>`).join("");
   $("steps").hidden = !a.steps.length;
-  // Walking and driving just hand off to Google Maps, as does transit when it says to walk.
-  const directions = transit && !a.walkOnly ? null : httpsUrl(a.directionsUrl);
+  // Everything except Metro routes hands off to Google Maps.
+  const directions = metro ? null : httpsUrl(a.directionsUrl);
   $("directions").hidden = !directions;
   if (directions) $("directions-link").href = directions;
   $("result").hidden = false;
@@ -103,11 +107,15 @@ async function fetchAdventure(reroll) {
   if (!reroll || !start) {
     seen = [];
     status.textContent = "Finding you…";
-    let loc = await getLocation();
-    if (!loc) status.textContent = "Couldn't get your location, so we're starting from the White House.";
-    else if (!inDC(...loc)) { status.textContent = "You're outside DC, so we'll start from the White House."; loc = null; }
-    else status.textContent = "Planning…";
-    start = loc ?? DC_CENTER;
+    try {
+      start = await getLocation();
+    } catch (err) {
+      start = null;
+      status.textContent = err.message;
+      btn.disabled = false;
+      return;
+    }
+    status.textContent = "Planning…";
   } else {
     status.textContent = "Picking another…";
   }

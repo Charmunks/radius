@@ -7,6 +7,7 @@ const WALK_KMH = 4.8;
 const MINUTES_PER_STOP = 2; // typical Metro time between stations, dwell included
 const MIN_RESULTS = 5; // below this, widen the search
 const MAX_STATION_KM = 2; // routing only covers places this close to a Metro station
+const METRO_AREA_KM = 5; // users further than this from any station get Google Maps transit instead
 const DISTANCE_PENALTY = 2; // relevance places lost per km from the user
 const TOP_N = 5;
 const PHOTO_CHECK_N = 10; // how many top candidates to look up website photos for
@@ -28,8 +29,8 @@ const MODES: TravelMode[] = ["transit", "walking", "driving"];
 export const parseMode = (raw: string | undefined): TravelMode =>
   MODES.includes(raw as TravelMode) ? (raw as TravelMode) : "transit";
 
-// Google Maps directions from the user to the destination, for walking or driving.
-export function directionsUrl(lat: number, lng: number, dest: Place, mode: Exclude<TravelMode, "transit">) {
+// Google Maps directions from the user to the destination.
+export function directionsUrl(lat: number, lng: number, dest: Place, mode: TravelMode) {
   const qs = new URLSearchParams({
     api: "1",
     origin: `${lat},${lng}`,
@@ -158,7 +159,8 @@ interface Candidate extends Place {
 async function getCandidates(
   lat: number, lng: number, interests: Category[], exclude: string[], opts: SearchOptions, mode: TravelMode,
 ): Promise<Candidate[] | "unavailable"> {
-  const covered = (p: Place) => mode !== "transit" || nearestStation(p.lat, p.lng).km <= MAX_STATION_KM;
+  const metro = mode === "transit" && nearestStation(lat, lng).km <= METRO_AREA_KM;
+  const covered = (p: Place) => !metro || nearestStation(p.lat, p.lng).km <= MAX_STATION_KM;
   const found = new Map<string, Candidate>();
 
   for (const [i, pass] of PASSES.entries()) {
@@ -211,6 +213,19 @@ export async function pickAdventure(
   }
 
   const origin = nearestStation(lat, lng);
+  // Outside the Metro area, so let Google Maps handle whatever local transit there is.
+  if (origin.km > METRO_AREA_KM) {
+    return {
+      mode,
+      destination: dest,
+      directKm: +directKm.toFixed(2),
+      noMetro: true,
+      walkMinutes: walkMinutes(directKm),
+      directionsUrl: directionsUrl(lat, lng, dest, "transit"),
+      steps: [],
+    };
+  }
+
   const destSt = nearestStation(dest.lat, dest.lng);
   const destCoords = stations[destSt.name]!;
   const legs = origin.name === destSt.name ? [] : route(origin.name, destSt.name);
