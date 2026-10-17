@@ -2,7 +2,6 @@ import { Elysia } from "elysia";
 import { staticPlugin } from "@elysiajs/static";
 import nunjucks from "nunjucks";
 import { parseInterests, pickAdventure } from "./adventure";
-import { places } from "./places";
 
 const env = nunjucks.configure("views", {
   autoescape: true,
@@ -17,7 +16,6 @@ const render = (template: string, context: object = {}) =>
 const app = new Elysia()
   .use(staticPlugin({ assets: "public", prefix: "/public", ...(process.env.NODE_ENV === "production" ? {} : { maxAge: 0, directive: "no-cache" }) }))
   .get("/", () => render("index.njk"))
-  .get("/api/places", () => places)
   .get("/api/adventure", async ({ query }) => {
     const lat = Number(query.lat);
     const lng = Number(query.lng);
@@ -33,6 +31,7 @@ const app = new Elysia()
       openNow: query.open_now === "true",
       price,
     });
+    if (adventure === "unavailable") return new Response(JSON.stringify({ error: "Yelp is unavailable right now. Try again in a minute." }), { status: 503, headers: { "Content-Type": "application/json" } });
     if (!adventure) return new Response(JSON.stringify({ error: "No matching places" }), { status: 404, headers: { "Content-Type": "application/json" } });
     return adventure;
   })

@@ -55,7 +55,7 @@ function render(a) {
 
   $("dest-name").textContent = d.name;
   $("dest-meta").textContent = `${d.category} · ${d.neighborhood} · plan about ${d.minutes} min there`;
-  $("dest-blurb").innerHTML = `${esc(d.blurb)}${d.tip ? `<br><em>Tip:</em> ${esc(d.tip)}` : ""}`;
+  $("dest-blurb").textContent = d.blurb;
 
   const img = $("dest-img");
   const imageUrl = httpsUrl(d.imageUrl);
@@ -72,9 +72,6 @@ function render(a) {
     yelp.innerHTML = `★ ${esc(d.rating)} · ${esc(d.reviewCount)} reviews${price}${link}${address}<br>Reviews and photos from Yelp`;
   }
 
-  const source = $("dest-source");
-  source.hidden = d.source !== "curated";
-  source.textContent = "Hand-picked by us, since Yelp had few matches nearby.";
   $("rides").innerHTML = a.walkOnly
     ? '<span class="badge" style="background:#16a34a">Walk</span>'
     : a.rides.map((r) => `<span class="badge" style="background:${esc(r.color)}">${esc(r.line)} Line · ${r.stops} stops</span>`).join("");

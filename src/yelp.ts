@@ -19,6 +19,8 @@ const MINUTES: Record<Category, number> = { food: 60, tourism: 90, photo: 40 };
 export interface YelpOptions {
   openNow?: boolean;
   price?: string; // comma-separated "1".."4"
+  radius?: number; // metres; Yelp caps this at 40000
+  sortBy?: "best_match" | "rating";
 }
 
 interface YelpBusiness {
@@ -64,10 +66,12 @@ function toPlace(b: YelpBusiness, category: Category): Place {
   };
 }
 
-// Returns null when Yelp is unavailable, so callers can fall back to curated places.
+// Returns null when Yelp is unavailable, so callers can tell that apart from "no results".
 export async function searchYelp(lat: number, lng: number, category: Category, opts: YelpOptions = {}): Promise<Place[] | null> {
   const [gLat, gLng] = [grid(lat), grid(lng)];
-  const cacheKey = `yelp:search:${category}:${gLat}:${gLng}:${opts.openNow ? 1 : 0}:${opts.price ?? ""}`;
+  const radius = opts.radius ?? RADIUS_M;
+  const sortBy = opts.sortBy ?? "best_match";
+  const cacheKey = `yelp:search:${category}:${gLat}:${gLng}:${opts.openNow ? 1 : 0}:${opts.price ?? ""}:${radius}:${sortBy}`;
 
   try {
     const hit = await withTimeout(redis.get(cacheKey));
@@ -78,7 +82,7 @@ export async function searchYelp(lat: number, lng: number, category: Category, o
 
   const apiKey = process.env.YELP_API_KEY;
   if (!apiKey) {
-    console.warn("YELP_API_KEY is not set; using curated places only");
+    console.warn("YELP_API_KEY is not set");
     return null;
   }
 
@@ -86,8 +90,9 @@ export async function searchYelp(lat: number, lng: number, category: Category, o
     latitude: String(gLat),
     longitude: String(gLng),
     categories: ALIASES[category],
-    radius: String(RADIUS_M),
+    radius: String(radius),
     limit: String(LIMIT),
+    sort_by: sortBy,
   });
   if (opts.openNow) qs.set("open_now", "true");
   if (opts.price) qs.set("price", opts.price);
@@ -100,7 +105,7 @@ export async function searchYelp(lat: number, lng: number, category: Category, o
     return null;
   }
   if (!res.ok) {
-    console.warn(`Yelp search returned ${res.status}; using curated places only`);
+    console.warn(`Yelp search returned ${res.status}`);
     return null;
   }
 

@@ -1,15 +1,18 @@
 import { lines, stations, tips, type Line } from "./metro";
-import { CATEGORIES, places, type Category, type Place } from "./places";
+import { CATEGORIES, type Category, type Place } from "./places";
 import { searchYelp, type YelpOptions } from "./yelp";
 
 const WALK_KMH = 4.8;
-const MIN_RATING = 3.5;
-const MIN_REVIEWS = 10;
-const MIN_YELP_RESULTS = 5; // below this, top up with curated places
+const MIN_YELP_RESULTS = 5; // below this, widen the search
 const MAX_STATION_KM = 2; // routing only covers places this close to a Metro station
 const DISTANCE_PENALTY = 1.5; // quality points lost per km from the user
-const CURATED_QUALITY = 8; // neutral score for hand-picked spots (about 4 stars with 100 reviews)
 const TOP_N = 5;
+
+// Strict search first; the wide pass only runs when the strict one finds too little.
+const PASSES = [
+  { radius: 5000, minRating: 3.5, minReviews: 10, sortBy: "best_match" },
+  { radius: 15000, minRating: 3.0, minReviews: 3, sortBy: "rating" },
+] as const;
 
 export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   const rad = (d: number) => (d * Math.PI) / 180;
@@ -95,7 +98,7 @@ function steps(startKm: number, boardAt: string, legs: Leg[], dest: Place, final
     const first = i === 0;
     out.push({
       title: first ? `Go down to the ${l.line.name} Line platform` : `Follow signs to the ${l.line.name} Line platform`,
-      detail: `Look for the ${l.line.name} Line (${l.line.color === "#ed8b00" ? "orange" : l.line.name.toLowerCase()}) sign and the direction "${l.towards}". That is the last stop of the train you want. Trains going the other way will say the opposite end.`,
+      detail: `Look for the ${l.line.name} Line (${l.line.colorName}) sign and the direction "${l.towards}". That is the last stop of the train you want. Trains going the other way will say the opposite end.`,
     });
     out.push({
       title: `Board a train toward ${l.towards}`,
@@ -131,31 +134,39 @@ interface Candidate extends Place {
   km: number;
 }
 
-// Yelp results first, filtered for quality and Metro coverage. Curated places
-// top up the list when Yelp is down or returns too few usable matches.
-async function getCandidates(lat: number, lng: number, interests: Category[], opts: YelpOptions): Promise<Candidate[]> {
+// Yelp results filtered for quality, Metro coverage and the UI's exclusions. Runs
+// a wider, looser search when the strict one leaves too few. Returns "unavailable"
+// when Yelp couldn't be reached at all.
+async function getCandidates(
+  lat: number, lng: number, interests: Category[], exclude: string[], opts: YelpOptions,
+): Promise<Candidate[] | "unavailable"> {
   const covered = (p: Place) => nearestStation(p.lat, p.lng).km <= MAX_STATION_KM;
-  const yelp = (await Promise.all(interests.map((c) => searchYelp(lat, lng, c, opts)))).flatMap((r) => r ?? []);
-  const usableYelp = yelp.filter((p) => (p.rating ?? 0) >= MIN_RATING && (p.reviewCount ?? 0) >= MIN_REVIEWS && covered(p));
+  const found = new Map<string, Place>();
 
-  const curated = places
-    .filter((p) => interests.includes(p.category) && covered(p))
-    .map((p) => ({ ...p, source: "curated" as const }));
-  const pool = usableYelp.length >= MIN_YELP_RESULTS ? usableYelp : [...usableYelp, ...curated];
+  for (const [i, pass] of PASSES.entries()) {
+    const results = await Promise.all(
+      interests.map((c) => searchYelp(lat, lng, c, { ...opts, radius: pass.radius, sortBy: pass.sortBy })),
+    );
+    if (i === 0 && results.every((r) => r === null)) return "unavailable";
+    for (const p of results.flatMap((r) => r ?? [])) {
+      if (found.has(p.id) || exclude.includes(p.id)) continue;
+      if (p.rating >= pass.minRating && p.reviewCount >= pass.minReviews && covered(p)) found.set(p.id, p);
+    }
+    if (found.size >= MIN_YELP_RESULTS) break;
+  }
 
-  return pool.map((p) => ({ ...p, km: haversineKm(lat, lng, p.lat, p.lng) }));
+  return [...found.values()].map((p) => ({ ...p, km: haversineKm(lat, lng, p.lat, p.lng) }));
 }
 
-// Quality (rating and review count) minus distance. Curated spots get a neutral quality.
-const score = (p: Candidate) =>
-  (p.rating !== undefined ? p.rating * Math.log10((p.reviewCount ?? 0) + 1) : CURATED_QUALITY) - DISTANCE_PENALTY * p.km;
+// Quality (rating and review count) minus distance.
+const score = (p: Candidate) => p.rating * Math.log10(p.reviewCount + 1) - DISTANCE_PENALTY * p.km;
 
 // Choose one destination near the user, randomly among the top few by score so repeat
 // requests give variety. `exclude` lets the UI re-roll.
 export async function pickAdventure(lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: YelpOptions = {}) {
-  const candidates = (await getCandidates(lat, lng, interests, opts))
-    .filter((p) => !exclude.includes(p.id))
-    .sort((a, b) => score(b) - score(a));
+  const found = await getCandidates(lat, lng, interests, exclude, opts);
+  if (found === "unavailable") return found;
+  const candidates = found.sort((a, b) => score(b) - score(a));
   if (!candidates.length) return null;
   const pool = candidates.slice(0, TOP_N);
   const { km: directKm, ...dest } = pool[Math.floor(Math.random() * pool.length)]!;
