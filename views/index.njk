@@ -1,18 +1,26 @@
 {% extends "layouts/base.njk" %}
 
-{% block title %}yelps · DC adventure{% endblock %}
+{% block title %}Radius{% endblock %}
 
 {% block content %}
 <main class="app">
   <aside class="panel">
-    <h1>DC Adventure</h1>
-    <p class="sub">Tell us what you're into and we'll pick one place and show you exactly how to get there by Metro.</p>
+    <h1>Radius</h1>
+    <p class="sub">Tell us what you're into and we'll pick one place and show you exactly how to get there.</p>
 
     <label class="pick">What are you in the mood for?
       <select id="interest">
-        <option value="food">🍔 Food</option>
-        <option value="tourism">🏛️ Tourism</option>
-        <option value="photo">📸 Photo ops</option>
+        <option value="food">Food</option>
+        <option value="tourism">Tourism</option>
+        <option value="photo">Photo ops</option>
+      </select>
+    </label>
+
+    <label class="pick">How are you getting there?
+      <select id="mode">
+        <option value="transit">Public Transit</option>
+        <option value="walking">Walking</option>
+        <option value="driving">Driving</option>
       </select>
     </label>
 
@@ -32,15 +40,16 @@
     <button id="go">Use my location &amp; go</button>
     <p id="status" role="status"></p>
     <section id="result" hidden>
-      <img id="dest-img" class="dest-img" alt="" hidden>
+      <img id="dest-img" class="dest-img" alt="" referrerpolicy="no-referrer" hidden>
       <h2 id="dest-name"></h2>
       <p id="dest-meta" class="meta"></p>
-      <p id="dest-yelp" class="meta" hidden></p>
+      <p id="dest-fsq" class="meta" hidden></p>
       <p id="dest-blurb"></p>
       <div id="rides" class="rides"></div>
       <h3>How to get there</h3>
       <ol id="steps" class="steps"></ol>
-      <h3>Little tips</h3>
+      <p id="directions" hidden><a id="directions-link" class="directions" target="_blank" rel="noopener">Open directions in Google Maps</a></p>
+      <h3 id="tips-heading">Little tips</h3>
       <ul id="tips" class="tips"></ul>
       <button id="reroll" class="secondary">Not feeling it? Pick another</button>
     </section>

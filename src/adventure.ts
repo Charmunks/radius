@@ -1,18 +1,18 @@
 import { lines, stations, tips, type Line } from "./metro";
 import { CATEGORIES, type Category, type Place } from "./places";
-import { searchYelp, type YelpOptions } from "./yelp";
+import { searchPlaces, type SearchOptions } from "./foursquare";
+import { websiteImage } from "./website-image";
 
 const WALK_KMH = 4.8;
-const MIN_YELP_RESULTS = 5; // below this, widen the search
+const MINUTES_PER_STOP = 2; // typical Metro time between stations, dwell included
+const MIN_RESULTS = 5; // below this, widen the search
 const MAX_STATION_KM = 2; // routing only covers places this close to a Metro station
-const DISTANCE_PENALTY = 1.5; // quality points lost per km from the user
+const DISTANCE_PENALTY = 2; // relevance places lost per km from the user
 const TOP_N = 5;
+const PHOTO_CHECK_N = 10; // how many top candidates to look up website photos for
 
-// Strict search first; the wide pass only runs when the strict one finds too little.
-const PASSES = [
-  { radius: 5000, minRating: 3.5, minReviews: 10, sortBy: "best_match" },
-  { radius: 15000, minRating: 3.0, minReviews: 3, sortBy: "rating" },
-] as const;
+// Near search first; the wide pass only runs when the near one finds too little.
+const PASSES = [{ radius: 5000 }, { radius: 15000 }] as const;
 
 export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   const rad = (d: number) => (d * Math.PI) / 180;
@@ -20,6 +20,23 @@ export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: numb
   const dLng = rad(bLng - aLng);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+
+export type TravelMode = "transit" | "walking" | "driving";
+const MODES: TravelMode[] = ["transit", "walking", "driving"];
+
+export const parseMode = (raw: string | undefined): TravelMode =>
+  MODES.includes(raw as TravelMode) ? (raw as TravelMode) : "transit";
+
+// Google Maps directions from the user to the destination, for walking or driving.
+export function directionsUrl(lat: number, lng: number, dest: Place, mode: Exclude<TravelMode, "transit">) {
+  const qs = new URLSearchParams({
+    api: "1",
+    origin: `${lat},${lng}`,
+    destination: dest.address ? `${dest.name}, ${dest.address}` : `${dest.lat},${dest.lng}`,
+    travelmode: mode,
+  });
+  return `https://www.google.com/maps/dir/?${qs}`;
 }
 
 export function parseInterests(raw: string | undefined): Category[] {
@@ -132,44 +149,66 @@ function steps(startKm: number, boardAt: string, legs: Leg[], dest: Place, final
 
 interface Candidate extends Place {
   km: number;
+  rank: number; // position in Foursquare's relevance order for its search
 }
 
-// Yelp results filtered for quality, Metro coverage and the UI's exclusions. Runs
-// a wider, looser search when the strict one leaves too few. Returns "unavailable"
-// when Yelp couldn't be reached at all.
+// Foursquare results filtered for the UI's exclusions and, for transit, Metro coverage. Runs a wider
+// search when the near one leaves too few. Returns "unavailable" when Foursquare
+// couldn't be reached at all.
 async function getCandidates(
-  lat: number, lng: number, interests: Category[], exclude: string[], opts: YelpOptions,
+  lat: number, lng: number, interests: Category[], exclude: string[], opts: SearchOptions, mode: TravelMode,
 ): Promise<Candidate[] | "unavailable"> {
-  const covered = (p: Place) => nearestStation(p.lat, p.lng).km <= MAX_STATION_KM;
-  const found = new Map<string, Place>();
+  const covered = (p: Place) => mode !== "transit" || nearestStation(p.lat, p.lng).km <= MAX_STATION_KM;
+  const found = new Map<string, Candidate>();
 
   for (const [i, pass] of PASSES.entries()) {
     const results = await Promise.all(
-      interests.map((c) => searchYelp(lat, lng, c, { ...opts, radius: pass.radius, sortBy: pass.sortBy })),
+      interests.map((c) => searchPlaces(lat, lng, c, { ...opts, radius: pass.radius })),
     );
     if (i === 0 && results.every((r) => r === null)) return "unavailable";
-    for (const p of results.flatMap((r) => r ?? [])) {
-      if (found.has(p.id) || exclude.includes(p.id)) continue;
-      if (p.rating >= pass.minRating && p.reviewCount >= pass.minReviews && covered(p)) found.set(p.id, p);
+    for (const places of results) {
+      places?.forEach((p, rank) => {
+        if (found.has(p.id) || exclude.includes(p.id) || !covered(p)) return;
+        // Wide-pass results rank below everything from the near pass.
+        found.set(p.id, { ...p, km: haversineKm(lat, lng, p.lat, p.lng), rank: rank + i * 100 });
+      });
     }
-    if (found.size >= MIN_YELP_RESULTS) break;
+    if (found.size >= MIN_RESULTS) break;
   }
 
-  return [...found.values()].map((p) => ({ ...p, km: haversineKm(lat, lng, p.lat, p.lng) }));
+  return [...found.values()];
 }
 
-// Quality (rating and review count) minus distance.
-const score = (p: Candidate) => p.rating * Math.log10(p.reviewCount + 1) - DISTANCE_PENALTY * p.km;
+// Foursquare's relevance order, nudged towards places closer to the user.
+const score = (p: Candidate) => -(p.rank + DISTANCE_PENALTY * p.km);
 
 // Choose one destination near the user, randomly among the top few by score so repeat
-// requests give variety. `exclude` lets the UI re-roll.
-export async function pickAdventure(lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: YelpOptions = {}) {
-  const found = await getCandidates(lat, lng, interests, exclude, opts);
+// requests give variety. Places whose website has a photo are preferred; the rest are
+// only used when none of the top candidates have one. `exclude` lets the UI re-roll.
+// Transit gets step-by-step Metro directions; walking and driving get a Google Maps link.
+export async function pickAdventure(
+  lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: SearchOptions = {}, mode: TravelMode = "transit",
+) {
+  const found = await getCandidates(lat, lng, interests, exclude, opts, mode);
   if (found === "unavailable") return found;
-  const candidates = found.sort((a, b) => score(b) - score(a));
+  const candidates = found.sort((a, b) => score(b) - score(a)).slice(0, PHOTO_CHECK_N);
   if (!candidates.length) return null;
-  const pool = candidates.slice(0, TOP_N);
-  const { km: directKm, ...dest } = pool[Math.floor(Math.random() * pool.length)]!;
+  const images = await Promise.all(candidates.map((c) => (c.website ? websiteImage(c.website) : null)));
+  const withPhotos = candidates.flatMap((c, i) => (images[i] ? [{ ...c, imageUrl: images[i] }] : []));
+  const pool = (withPhotos.length ? withPhotos : candidates).slice(0, TOP_N);
+  const { km: directKm, rank: _rank, ...dest } = pool[Math.floor(Math.random() * pool.length)]!;
+
+  if (mode !== "transit") {
+    return {
+      mode,
+      destination: dest,
+      directKm: +directKm.toFixed(2),
+      walkMinutes: walkMinutes(directKm),
+      directionsUrl: directionsUrl(lat, lng, dest, mode),
+      steps: [],
+      tips: [],
+    };
+  }
 
   const origin = nearestStation(lat, lng);
   const destSt = nearestStation(dest.lat, dest.lng);
@@ -183,9 +222,11 @@ export async function pickAdventure(lat: number, lng: number, interests: Categor
   for (const l of legs) ridePath.push(stations[l.to] ?? destCoords);
 
   return {
+    mode,
     destination: dest,
     directKm: +directKm.toFixed(2),
     walkOnly,
+    walkMinutes: walkMinutes(directKm),
     origin: { station: origin.name, km: +origin.km.toFixed(2), coords: stations[origin.name]! },
     destStation: { name: destSt.name, coords: destCoords },
     ridePath,
@@ -196,6 +237,7 @@ export async function pickAdventure(lat: number, lng: number, interests: Categor
       to: l.to,
       towards: l.towards,
       stops: l.stops,
+      minutes: l.stops * MINUTES_PER_STOP,
     })),
     tips,
     steps: walkOnly

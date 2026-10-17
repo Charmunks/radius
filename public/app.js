@@ -38,7 +38,8 @@ function render(a) {
   const dest = L.marker([d.lat, d.lng], { icon: pin(d.category, "★") }).bindPopup(`<strong>${esc(d.name)}</strong>`).addTo(layer);
 
   const points = [start, [d.lat, d.lng]];
-  if (!a.walkOnly) {
+  const transit = a.mode === "transit";
+  if (transit && !a.walkOnly) {
     // walk to the station, ride, then walk to the destination
     const ridePath = a.ridePath;
     L.polyline([start, a.origin.coords], { color: "#16a34a", weight: 3, dashArray: "4 6" }).addTo(layer);
@@ -48,7 +49,8 @@ function render(a) {
     L.marker(a.destStation.coords, { icon: pin("metro", "M") }).bindPopup(`Get off: ${esc(a.destStation.name)}`).addTo(layer);
     points.push(a.origin.coords, a.destStation.coords);
   } else {
-    L.polyline([start, [d.lat, d.lng]], { color: "#16a34a", weight: 3, dashArray: "4 6" }).addTo(layer);
+    const color = a.mode === "driving" ? "#1d4ed8" : "#16a34a";
+    L.polyline([start, [d.lat, d.lng]], { color, weight: 3, dashArray: "4 6" }).addTo(layer);
   }
   map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
   dest.openPopup();
@@ -60,23 +62,37 @@ function render(a) {
   const img = $("dest-img");
   const imageUrl = httpsUrl(d.imageUrl);
   img.hidden = !imageUrl;
+  // Images come from the place's own site, which may block or drop them.
+  img.onerror = () => { img.hidden = true; };
   if (imageUrl) img.src = imageUrl;
 
-  const yelp = $("dest-yelp");
-  const yelpUrl = httpsUrl(d.yelpUrl);
-  yelp.hidden = d.rating == null;
-  if (d.rating != null) {
-    const price = d.price ? ` · ${esc(d.price)}` : "";
-    const address = d.address ? `<br>${esc(d.address)}` : "";
-    const link = yelpUrl ? ` · <a href="${esc(yelpUrl)}" target="_blank" rel="noopener">View on Yelp</a>` : "";
-    yelp.innerHTML = `★ ${esc(d.rating)} · ${esc(d.reviewCount)} reviews${price}${link}${address}<br>Reviews and photos from Yelp`;
-  }
+  const fsq = $("dest-fsq");
+  const fsqUrl = httpsUrl(d.foursquareUrl);
+  const siteUrl = httpsUrl(d.website) ?? (d.website?.startsWith("http://") ? d.website : null);
+  const links = [
+    siteUrl && `<a href="${esc(siteUrl)}" target="_blank" rel="noopener">Website</a>`,
+    fsqUrl && `<a href="${esc(fsqUrl)}" target="_blank" rel="noopener">View on Foursquare</a>`,
+  ].filter(Boolean).join(" · ");
+  const address = d.address ? `${esc(d.address)}<br>` : "";
+  // Credit the site the photo was found on; the image itself is often on a CDN.
+  const credit = imageUrl && siteUrl ? `Photo from ${esc(new URL(siteUrl).hostname.replace(/^www\./, ""))} · ` : "";
+  fsq.hidden = false;
+  fsq.innerHTML = `${address}${links}<br>${credit}Place data powered by Foursquare`;
 
-  $("rides").innerHTML = a.walkOnly
-    ? '<span class="badge" style="background:#16a34a">Walk</span>'
-    : a.rides.map((r) => `<span class="badge" style="background:${esc(r.color)}">${esc(r.line)} Line · ${r.stops} stops</span>`).join("");
+  const lines = a.mode === "walking" || a.walkOnly
+    ? [`<strong style="color:#16a34a">Walk</strong> · about ${a.walkMinutes} min`]
+    : a.mode === "driving"
+      ? [`<strong style="color:#1d4ed8">Drive</strong> · ${a.directKm} km away`]
+      : a.rides.map((r) => `<strong style="color:${esc(r.color)}">${esc(r.line)} Line</strong> · ${r.stops} ${r.stops === 1 ? "stop" : "stops"} · about ${r.minutes} min`);
+  $("rides").innerHTML = `<div class="ride-info">${lines.map((l) => `<p>${l}</p>`).join("")}</div>`;
   $("steps").innerHTML = a.steps.map((s) => `<li><strong>${esc(s.title)}</strong><span>${esc(s.detail)}</span></li>`).join("");
+  $("steps").hidden = !a.steps.length;
+  // Walking and driving just hand off to Google Maps.
+  const directions = transit ? null : httpsUrl(a.directionsUrl);
+  $("directions").hidden = !directions;
+  if (directions) $("directions-link").href = directions;
   $("tips").innerHTML = a.tips.map((t) => `<li>${esc(t)}</li>`).join("");
+  $("tips-heading").hidden = $("tips").hidden = !a.tips.length;
   $("result").hidden = false;
 }
 
@@ -106,6 +122,7 @@ async function fetchAdventure(reroll) {
       exclude: seen.join(","),
       price: $("price").value,
       open_now: $("open-now").checked,
+      mode: $("mode").value,
     });
     const res = await fetch(`/api/adventure?${qs}`);
     if (!res.ok) {
@@ -124,7 +141,7 @@ async function fetchAdventure(reroll) {
 }
 
 $("go").addEventListener("click", () => fetchAdventure(false));
-for (const id of ["interest", "price", "open-now"]) {
+for (const id of ["interest", "mode", "price", "open-now"]) {
   $(id).addEventListener("change", () => { start = null; });
 }
 $("reroll").addEventListener("click", () => fetchAdventure(true));

@@ -9,12 +9,10 @@ export interface Place {
   neighborhood: string;
   blurb: string;
   minutes: number;
-  source: "yelp";
-  rating: number;
-  reviewCount: number;
-  price?: string;
-  imageUrl?: string;
-  yelpUrl: string;
+  source: "foursquare";
+  website?: string;
+  imageUrl?: string; // from the place's own website
+  foursquareUrl: string;
   address: string;
 }
 
