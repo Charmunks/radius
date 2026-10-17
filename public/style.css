@@ -65,6 +65,10 @@ h1 { margin: 0; font-size: 1.5rem; }
 .filters .pick { flex: 1; margin-bottom: 0; }
 .check { display: flex; align-items: center; gap: .4rem; font-weight: 600; padding-bottom: .6rem; white-space: nowrap; }
 .check input { accent-color: var(--blue); }
+.interests { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .75rem; padding: 0; border: 0; min-width: 0; }
+.interests legend { padding: 0; margin-bottom: .4rem; }
+.interest { display: flex; align-items: center; gap: .4rem; font-weight: 400; cursor: pointer; }
+.interest input { accent-color: var(--blue); margin: 0; }
 .dest-img { display: block; width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
 .dest-img[hidden] { display: none; }
 #dest-fsq a { color: var(--blue); }
@@ -83,8 +87,13 @@ button:disabled { opacity: .6; cursor: wait; }
 .muted { padding: .5rem .6rem; color: var(--subtext0); }
 .link { padding: 0; margin-top: .4rem; border: 0; background: none; color: var(--blue); font: inherit; font-weight: 400; font-size: .9rem; cursor: pointer; text-align: left; }
 .app.picking #map { cursor: crosshair; outline: 3px solid var(--blue); outline-offset: -3px; }
-.surprise { margin-top: .6rem; padding: .7rem; font-size: 1rem; }
-.mystery { align-items: flex-start; gap: .5rem; padding: .8rem .2rem 0; font-weight: 400; font-size: .9rem; line-height: 1.35; white-space: normal; color: var(--subtext1); }
+.surprise { margin-top: 0; padding: .7rem; font-size: 1rem; }
+.or { display: flex; align-items: center; gap: .75rem; margin: 1.5rem 0 1.25rem; color: var(--subtext0); font-size: .85rem; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--surface1); }
+.back { padding: 0; margin: 0 0 .75rem; border: 0; background: none; color: var(--blue); font: inherit; font-weight: 600; cursor: pointer; }
+.back[hidden] { display: none; }
+.app.viewing #picker, .app.viewing .mine, .app.viewing .sub, .app.viewing .install { display: none; }
+.mystery { align-items: flex-start; gap: .5rem; padding: 0 .2rem .8rem; font-weight: 400; font-size: .9rem; line-height: 1.35; white-space: normal; color: var(--subtext1); }
 .mystery input { flex: none; margin: .15rem 0 0; }
 .actions { display: flex; gap: .4rem; margin: .5rem 0; }
 .actions[hidden], .rate[hidden] { display: none; }

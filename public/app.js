@@ -184,6 +184,9 @@ function render(a, mystery = false) {
   $("actions").hidden = hide;
   syncPlaceButtons();
   $("result").hidden = false;
+  $("back").hidden = false;
+  document.querySelector(".app").classList.add("viewing");
+  $("result").closest(".panel").scrollTop = 0;
   showMap();
 
   if (hide) watchArrival(a.destStation.coords);
@@ -231,7 +234,7 @@ async function locate() {
   }
 }
 
-const selectedInterests = () => [...$("interests").selectedOptions].map((o) => o.value);
+const selectedInterests = () => [...$("interests").querySelectorAll("input:checked")].map((o) => o.value);
 
 async function fetchAdventure(reroll) {
   const buttons = [$("go"), $("surprise"), $("reroll")];
@@ -325,6 +328,13 @@ $("surprise").addEventListener("click", () => {
   syncGoLabel();
   surprise = true;
   fetchAdventure(false);
+});
+$("back").addEventListener("click", () => {
+  document.querySelector(".app").classList.remove("viewing");
+  $("back").hidden = true;
+  $("result").hidden = true;
+  $("status").textContent = "";
+  $("result").closest(".panel").scrollTop = 0;
 });
 $("reroll").addEventListener("click", () => fetchAdventure(true));
 $("reveal").addEventListener("click", reveal);
@@ -503,7 +513,7 @@ function renderMine() {
     $("mode").value = last.a.mode;
     seen = [last.a.destination.id];
     render(last.a, last.mystery);
-    $("status").textContent = navigator.onLine ? "Here's your last pick." : "You're offline, so here's your last pick.";
+    $("status").textContent = navigator.onLine && "You're offline.";
   } else if (shared) {
     openShared(shared);
   }

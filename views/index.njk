@@ -16,6 +16,7 @@
         <button id="install-dismiss" type="button" class="secondary">Not now</button>
       </div>
     </div>
+    <div id="picker">
     <p class="sub">Tell us what you're into and we'll pick one place and show you exactly how to get there.</p>
 
     <div class="pick">Starting from
@@ -31,13 +32,12 @@
       <button id="drop-pin" type="button" class="link">Or drop a pin on the map</button>
     </div>
 
-    <label class="pick">What are you in the mood for? <span class="hint">Pick one or more</span>
-      <select id="interests" multiple size="6">
-        {% for c in categories %}
-        <option value="{{ c.id }}"{% if loop.first %} selected{% endif %}>{{ c.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <fieldset class="pick interests" id="interests">
+      <legend>What are you in the mood for? <span class="hint">Pick one or more</span></legend>
+      {% for c in categories %}
+      <label class="interest"><input type="checkbox" name="interests" value="{{ c.id }}"{% if loop.first %} checked{% endif %}> {{ c.label }}</label>
+      {% endfor %}
+    </fieldset>
 
     <label class="pick">How are you getting there?
       <select id="mode">
@@ -71,9 +71,12 @@
       <label class="check"><input type="checkbox" id="open-now"> Open now</label>
     </div>
 
-    <button id="go">Use my location &amp; go</button>
-    <button id="surprise" type="button" class="secondary surprise">Surprise me</button>
     <label class="check mystery"><input type="checkbox" id="mystery"> Keep it a mystery until I get there (Metro trips)</label>
+    <button id="go">Use my location &amp; go</button>
+    <div class="or"><span>or</span></div>
+    <button id="surprise" type="button" class="secondary surprise">Surprise me</button>
+    </div>
+    <button id="back" type="button" class="back" hidden>← Back to customize</button>
     <p id="status" role="status"></p>
     <section id="result" hidden>
       <img id="dest-img" class="dest-img" alt="" referrerpolicy="no-referrer" hidden>
