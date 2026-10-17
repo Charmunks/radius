@@ -18,13 +18,27 @@
     </div>
     <p class="sub">Tell us what you're into and we'll pick one place and show you exactly how to get there.</p>
 
-    <label class="pick">What are you in the mood for?
-      <select id="interest">
-        <option value="food">Food</option>
-        <option value="tourism">Tourism</option>
-        <option value="photo">Photo ops</option>
-      </select>
-    </label>
+    <div class="pick">Starting from
+      <div class="start-row">
+        <span id="start-label" class="start-label">Your current location</span>
+        <button id="start-reset" type="button" class="link" hidden>Use my location</button>
+      </div>
+      <form id="start-search" class="start-search">
+        <input id="start-q" type="search" placeholder="Or search, e.g. Union Station" aria-label="Search for a starting point" autocomplete="off">
+        <button type="submit" class="secondary">Search</button>
+      </form>
+      <ul id="start-results" class="start-results" hidden></ul>
+      <button id="drop-pin" type="button" class="link">Or drop a pin on the map</button>
+    </div>
+
+    <fieldset class="pick chips-field">
+      <legend>What are you in the mood for? <span class="hint">Pick one or more</span></legend>
+      <div id="interests" class="chips">
+        {% for c in categories %}
+        <button type="button" class="chip" data-cat="{{ c.id }}" aria-pressed="{{ 'true' if loop.first else 'false' }}">{{ c.label }}</button>
+        {% endfor %}
+      </div>
+    </fieldset>
 
     <label class="pick">How are you getting there?
       <select id="mode">
@@ -59,6 +73,8 @@
     </div>
 
     <button id="go">Use my location &amp; go</button>
+    <button id="surprise" type="button" class="secondary surprise">Surprise me</button>
+    <label class="check mystery"><input type="checkbox" id="mystery"> Keep it a mystery until I get there (Metro trips)</label>
     <p id="status" role="status"></p>
     <section id="result" hidden>
       <img id="dest-img" class="dest-img" alt="" referrerpolicy="no-referrer" hidden>
@@ -66,15 +82,36 @@
       <p id="dest-meta" class="meta"></p>
       <p id="dest-fsq" class="meta" hidden></p>
       <p id="dest-blurb"></p>
+      <div id="actions" class="actions">
+        <button id="save" type="button" class="secondary" aria-pressed="false">Save</button>
+        <button id="visited" type="button" class="secondary" aria-pressed="false">Been there</button>
+        <button id="share" type="button" class="secondary">Share</button>
+      </div>
+      <div id="rate" class="rate" hidden>
+        <span>How was it?</span>
+        <button type="button" class="secondary" data-rating="1" aria-pressed="false" aria-label="Thumbs up">👍</button>
+        <button type="button" class="secondary" data-rating="-1" aria-pressed="false" aria-label="Thumbs down">👎</button>
+      </div>
       <div id="rides" class="rides"></div>
       <h3>How to get there</h3>
       <ol id="steps" class="steps"></ol>
+      <button id="reveal" type="button" class="reveal" hidden>I'm here, reveal it</button>
       <p id="directions" hidden><a id="directions-link" class="directions" target="_blank" rel="noopener">Open directions in Google Maps</a></p>
       <button id="reroll" class="secondary">Not feeling it? Pick another</button>
     </section>
+
+    <details id="mine" class="mine">
+      <summary>My places &amp; passport</summary>
+      <div id="passport" class="passport"></div>
+      <h3>Saved</h3>
+      <ul id="saved-list" class="place-list"></ul>
+      <h3>Been there</h3>
+      <ul id="visit-list" class="place-list"></ul>
+    </details>
   </aside>
   <div id="map"></div>
 </main>
+<script id="metro-lines" type="application/json">{{ metroLines | dump | safe }}</script>
 {% endblock %}
 
 {% block scripts %}<script src="/public/app.js"></script>{% endblock %}

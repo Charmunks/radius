@@ -1,7 +1,7 @@
-import type { Category, Place } from "./places";
+import { CATEGORIES, type Category, type Place } from "./places";
 import { redis, withTimeout } from "./redis";
 
-const SEARCH_URL = "https://places-api.foursquare.com/places/search";
+const BASE_URL = "https://places-api.foursquare.com/places";
 const API_VERSION = "2025-06-17";
 const RADIUS_M = 5000;
 const LIMIT = 50;
@@ -12,16 +12,36 @@ const FIELDS = "fsq_place_id,name,latitude,longitude,categories,location,website
 
 // Foursquare category IDs for each of our interest buckets.
 const CATEGORY_IDS: Record<Category, string> = {
-  // Restaurant, Café, Coffee Shop, Bakery, Food Truck
-  food: "4d4b7105d754a06374d81259,4bf58dd8d48988d16d941735,4bf58dd8d48988d1e0931735,4bf58dd8d48988d16a941735,4bf58dd8d48988d1cb941735",
-  // Monument, Historic and Protected Site, Memorial Site, Museum, Tour Provider
-  tourism: "4bf58dd8d48988d12d941735,4deefb944765f83613cdba6e,5642206c498e4bfca532186c,4bf58dd8d48988d181941735,56aa371be4b08b9a8d573520",
-  // Public Art, Park, Garden, Botanical Garden, Scenic Lookout
-  photo: "507c8c4091d498d9fc8c67a9,4bf58dd8d48988d163941735,4bf58dd8d48988d15a941735,52e81612bcbc57f1066b7a22,4bf58dd8d48988d165941735",
+  // Restaurant, Bakery, Food Truck
+  food: "4d4b7105d754a06374d81259,4bf58dd8d48988d16a941735,4bf58dd8d48988d1cb941735",
+  // Coffee Shop, Café, Tea Room
+  coffee: "4bf58dd8d48988d1e0931735,4bf58dd8d48988d16d941735,4bf58dd8d48988d1dc931735",
+  // Bar, Cocktail Bar, Brewery (the top-level Nightlife ID returns nothing)
+  nightlife: "4bf58dd8d48988d116941735,4bf58dd8d48988d11e941735,50327c8591d4c4b30a586d5d",
+  // Park, Garden, Botanical Garden
+  parks: "4bf58dd8d48988d163941735,4bf58dd8d48988d15a941735,52e81612bcbc57f1066b7a22",
+  // Museum, Art Museum, History Museum, Science Museum, Art Gallery
+  museums: "4bf58dd8d48988d181941735,4bf58dd8d48988d18f941735,4bf58dd8d48988d190941735,4bf58dd8d48988d191941735,4bf58dd8d48988d1e2931735",
+  // Monument, Historic and Protected Site, Memorial Site, Tour Provider
+  tourism: "4bf58dd8d48988d12d941735,4deefb944765f83613cdba6e,5642206c498e4bfca532186c,56aa371be4b08b9a8d573520",
+  // Public Art, Outdoor Sculpture, Scenic Lookout, Bridge
+  photo: "507c8c4091d498d9fc8c67a9,52e81612bcbc57f1066b79ed,4bf58dd8d48988d165941735,4bf58dd8d48988d1df941735",
+  // Shopping Mall, Bookstore, Flea Market, Thrift / Vintage Store, Clothing Store
+  shopping: "4bf58dd8d48988d1fd941735,4bf58dd8d48988d114951735,4bf58dd8d48988d1f7941735,4bf58dd8d48988d101951735,4bf58dd8d48988d103951735",
+  // Music Venue, Jazz Club, Rock Club, Concert Hall
+  music: "4bf58dd8d48988d1e5931735,4bf58dd8d48988d1e7931735,4bf58dd8d48988d1e9931735,5032792091d4c4b30a586d5c",
 };
 
 // Foursquare has no visit length, so use a rough default per bucket.
-const MINUTES: Record<Category, number> = { food: 60, tourism: 90, photo: 40 };
+const MINUTES: Record<Category, number> = {
+  food: 60, coffee: 30, nightlife: 90, parks: 45, museums: 90, tourism: 45, photo: 30, shopping: 60, music: 120,
+};
+
+// Our bucket for a place looked up by ID, from its Foursquare categories.
+function guessCategory(p: FsqPlace): Category {
+  const ids = (p.categories ?? []).map((c) => c.fsq_category_id);
+  return CATEGORIES.find((c) => ids.some((id) => CATEGORY_IDS[c].includes(id))) ?? "tourism";
+}
 
 export interface SearchOptions {
   openNow?: boolean;
@@ -39,6 +59,8 @@ interface FsqPlace {
   website?: string;
   date_closed?: string;
 }
+
+const headers = (apiKey: string) => ({ Authorization: `Bearer ${apiKey}`, "X-Places-Api-Version": API_VERSION, Accept: "application/json" });
 
 // Round to about 100 m so nearby requests share one cache entry.
 const grid = (n: number) => Math.round(n * 1000) / 1000;
@@ -65,7 +87,7 @@ function toPlace(p: FsqPlace, category: Category): Place {
 export async function searchPlaces(lat: number, lng: number, category: Category, opts: SearchOptions = {}): Promise<Place[] | null> {
   const [gLat, gLng] = [grid(lat), grid(lng)];
   const radius = opts.radius ?? RADIUS_M;
-  const cacheKey = `fsq:search:v2:${category}:${gLat}:${gLng}:${opts.openNow ? 1 : 0}:${opts.price ?? ""}:${radius}`;
+  const cacheKey = `fsq:search:v3:${category}:${gLat}:${gLng}:${opts.openNow ? 1 : 0}:${opts.price ?? ""}:${radius}`;
 
   try {
     const hit = await withTimeout(redis.get(cacheKey));
@@ -98,9 +120,7 @@ export async function searchPlaces(lat: number, lng: number, category: Category,
 
   let res: Response;
   try {
-    res = await fetch(`${SEARCH_URL}?${qs}`, {
-      headers: { Authorization: `Bearer ${apiKey}`, "X-Places-Api-Version": API_VERSION, Accept: "application/json" },
-    });
+    res = await fetch(`${BASE_URL}/search?${qs}`, { headers: headers(apiKey) });
   } catch (err) {
     console.warn("Foursquare request failed:", err);
     return null;
@@ -119,4 +139,48 @@ export async function searchPlaces(lat: number, lng: number, category: Category,
     console.warn("Redis write failed:", err);
   }
   return places;
+}
+
+// One place by its Foursquare ID, for shared links. Returns null when it doesn't exist and
+// "unavailable" when Foursquare can't be reached. `category` is our bucket from the link,
+// when it has one; otherwise it's guessed from the place's own categories.
+export async function getPlace(id: string, category?: Category): Promise<Place | null | "unavailable"> {
+  const cacheKey = `fsq:place:v1:${id}`;
+  let raw: FsqPlace | null = null;
+
+  try {
+    const hit = await withTimeout(redis.get(cacheKey));
+    if (hit) raw = JSON.parse(hit) as FsqPlace;
+  } catch (err) {
+    console.warn("Redis read failed, calling Foursquare directly:", err);
+  }
+
+  if (!raw) {
+    const apiKey = process.env.FOURSQUARE_API_KEY;
+    if (!apiKey) {
+      console.warn("FOURSQUARE_API_KEY is not set");
+      return "unavailable";
+    }
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}/${encodeURIComponent(id)}?fields=${FIELDS}`, { headers: headers(apiKey) });
+    } catch (err) {
+      console.warn("Foursquare request failed:", err);
+      return "unavailable";
+    }
+    if (res.status === 404 || res.status === 400) return null;
+    if (!res.ok) {
+      console.warn(`Foursquare place lookup returned ${res.status}`);
+      return "unavailable";
+    }
+    raw = (await res.json()) as FsqPlace;
+    try {
+      await withTimeout(redis.set(cacheKey, JSON.stringify(raw), "EX", CACHE_TTL_S));
+    } catch (err) {
+      console.warn("Redis write failed:", err);
+    }
+  }
+
+  if (raw.date_closed) return null;
+  return toPlace(raw, category ?? guessCategory(raw));
 }

@@ -3,6 +3,7 @@ import { osmRoute } from "./osm-route";
 import { CATEGORIES, type Category, type Place } from "./places";
 import { searchPlaces, type SearchOptions } from "./foursquare";
 import { websiteImage } from "./website-image";
+import { netRatings } from "./me";
 
 const WALK_KMH = 4.8;
 const MINUTES_PER_STOP = 2; // typical Metro time between stations, dwell included
@@ -10,6 +11,8 @@ const MIN_RESULTS = 5; // below this, widen the search
 const MAX_STATION_KM = 2; // routing only covers places this close to a Metro station
 const METRO_AREA_KM = 5; // users further than this from any station get Google Maps transit instead
 const DISTANCE_PENALTY = 2; // relevance places lost per km from the user
+const RATING_BONUS = 4; // relevance places gained per net thumbs up from visitors
+const MAX_RATING_SWING = 5; // so a handful of votes can't bury or crown a place
 const DRIVE_KMH = 30; // city driving average
 const DRIVE_OVERHEAD_MIN = 5; // parking, getting to the car
 const TRANSIT_KMH = 20; // door-to-door transit speed outside the Metro area
@@ -206,26 +209,38 @@ async function getCandidates(
   return [...found.values()];
 }
 
-// Foursquare's relevance order, nudged towards places closer to the user.
-const score = (p: Candidate) => -(p.rank + DISTANCE_PENALTY * p.km);
+// Foursquare's relevance order, nudged towards places closer to the user and towards
+// places our own visitors gave a thumbs up.
+const score = (p: Candidate, net = 0) =>
+  -(p.rank + DISTANCE_PENALTY * p.km) + RATING_BONUS * Math.max(-MAX_RATING_SWING, Math.min(MAX_RATING_SWING, net));
 
 // Choose one destination near the user, randomly among the top few by score so repeat
 // requests give variety. Places whose website has a photo are preferred; the rest are
 // only used when none of the top candidates have one. `exclude` lets the UI re-roll.
-// Transit gets step-by-step Metro directions (or a walking link if the place is close);
-// walking and driving get a Google Maps link.
 export async function pickAdventure(
   lat: number, lng: number, interests: Category[], exclude: string[] = [], opts: SearchOptions = {}, mode: TravelMode = "transit", maxMinutes?: number,
 ) {
   const found = await getCandidates(lat, lng, interests, exclude, opts, mode, maxMinutes);
   if (found === "unavailable") return found;
-  const candidates = found.sort((a, b) => score(b) - score(a)).slice(0, PHOTO_CHECK_N);
+  const ratings = await netRatings(found.map((p) => p.id));
+  const candidates = found.sort((a, b) => score(b, ratings.get(b.id)) - score(a, ratings.get(a.id))).slice(0, PHOTO_CHECK_N);
   if (!candidates.length) return null;
   const images = await Promise.all(candidates.map((c) => (c.website ? websiteImage(c.website) : null)));
   const withPhotos = candidates.flatMap((c, i) => (images[i] ? [{ ...c, imageUrl: images[i] }] : []));
   const pool = (withPhotos.length ? withPhotos : candidates).slice(0, TOP_N);
   const { km: directKm, rank: _rank, ...dest } = pool[Math.floor(Math.random() * pool.length)]!;
+  return planTrip(lat, lng, dest, directKm, mode);
+}
 
+// Directions to one particular place, for shared links.
+export async function planTripTo(lat: number, lng: number, place: Place, mode: TravelMode) {
+  const imageUrl = place.website ? await websiteImage(place.website) : null;
+  return planTrip(lat, lng, imageUrl ? { ...place, imageUrl } : place, haversineKm(lat, lng, place.lat, place.lng), mode);
+}
+
+// Transit gets step-by-step Metro directions (or a walking link if the place is close);
+// walking and driving get a Google Maps link.
+async function planTrip(lat: number, lng: number, dest: Place, directKm: number, mode: TravelMode) {
   const here: [number, number] = [lat, lng];
   const there: [number, number] = [dest.lat, dest.lng];
 

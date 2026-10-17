@@ -4,7 +4,8 @@
   --base: #eff1f5; --mantle: #e6e9ef; --crust: #dce0e8;
   --text: #4c4f69; --subtext1: #5c5f77; --subtext0: #6c6f85;
   --overlay0: #9ca0b0; --surface1: #bcc0cc; --surface0: #ccd0da;
-  --blue: #1e66f5; --green: #40a02b; --red: #d20f39; --mauve: #8839ef; 
+  --blue: #1e66f5; --green: #40a02b; --red: #d20f39; --mauve: #8839ef;
+  --peach: #fe640b; --pink: #ea76cb; --teal: #179299; --lavender: #7287fd; --yellow: #df8e1d; --sky: #04a5e5;
   --rosewater: #1e66f5;
 }
 :root[data-theme="dark"] {
@@ -13,6 +14,7 @@
   --text: #cdd6f4; --subtext1: #bac2de; --subtext0: #a6adc8;
   --overlay0: #6c7086; --surface1: #45475a; --surface0: #313244;
   --blue: #89b4fa; --green: #a6e3a1; --red: #f38ba8; --mauve: #cba6f7;
+  --peach: #fab387; --pink: #f5c2e7; --teal: #94e2d5; --lavender: #b4befe; --yellow: #f9e2af; --sky: #89dceb;
   --rosewater: #f5e0dc;
 }
 
@@ -44,6 +46,8 @@ h1 { margin: 0; font-size: 1.5rem; }
 .secondary { width: 100%; padding: .6rem; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); color: var(--text); cursor: pointer; font-size: .95rem; }
 .pin { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--base); font-weight: 700; border: 2px solid var(--base); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 .pin.food { background: var(--red); } .pin.tourism { background: var(--blue); } .pin.photo { background: var(--mauve); }
+.pin.coffee { background: var(--peach); } .pin.nightlife { background: var(--pink); } .pin.parks { background: var(--teal); }
+.pin.museums { background: var(--lavender); } .pin.shopping { background: var(--yellow); } .pin.music { background: var(--sky); }
 .pin.you { background: var(--green); } .pin.metro { background: var(--text); font-size: .75rem; }
 .walk { color: var(--green); } .drive { color: var(--blue); }
 /* Leaflet sets stroke as an attribute, so these rules win over it. */
@@ -65,6 +69,50 @@ h1 { margin: 0; font-size: 1.5rem; }
 .dest-img[hidden] { display: none; }
 #dest-fsq a { color: var(--blue); }
 .directions { display: block; padding: .7rem; margin: 0 0 1rem; text-align: center; font-weight: 600; text-decoration: none; border-radius: 8px; background: var(--blue); color: var(--base); }
+button:disabled { opacity: .6; cursor: wait; }
+.hint { font-weight: 400; font-size: .85rem; color: var(--subtext0); }
+.chips-field { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
+.chips-field legend { padding: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.chip { padding: .4rem .75rem; font: inherit; font-weight: 400; font-size: .9rem; border: 1px solid var(--surface1); border-radius: 999px; background: var(--mantle); color: var(--text); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--rosewater); background: var(--rosewater); color: var(--base); font-weight: 600; }
+.start-row { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; margin-top: .4rem; font-weight: 400; }
+.start-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--subtext1); }
+.start-search { display: flex; gap: .4rem; margin-top: .4rem; }
+.start-search input { flex: 1; min-width: 0; padding: .55rem .6rem; font: inherit; font-weight: 400; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); color: var(--text); }
+.start-search .secondary { width: auto; }
+.start-results { list-style: none; margin: .4rem 0 0; padding: 0; border: 1px solid var(--surface0); border-radius: 8px; font-weight: 400; font-size: .85rem; }
+.start-results li + li { border-top: 1px solid var(--surface0); }
+.start-results button { display: block; width: 100%; padding: .5rem .6rem; border: 0; background: none; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.start-results button:hover { background: var(--mantle); }
+.muted { padding: .5rem .6rem; color: var(--subtext0); }
+.link { padding: 0; margin-top: .4rem; border: 0; background: none; color: var(--blue); font: inherit; font-weight: 400; font-size: .9rem; cursor: pointer; text-align: left; }
+.app.picking #map { cursor: crosshair; outline: 3px solid var(--blue); outline-offset: -3px; }
+.surprise { margin-top: .5rem; }
+.mystery { padding: .6rem 0 0; font-weight: 400; font-size: .9rem; white-space: normal; }
+.actions { display: flex; gap: .4rem; margin: .5rem 0; }
+.actions[hidden], .rate[hidden] { display: none; }
+.actions .secondary { flex: 1; padding: .5rem; font-size: .9rem; }
+.actions [aria-pressed="true"] { border-color: var(--green); color: var(--green); font-weight: 600; }
+.rate { display: flex; align-items: center; gap: .4rem; margin: 0 0 .5rem; font-size: .9rem; }
+.rate .secondary { width: auto; padding: .3rem .7rem; }
+.rate [aria-pressed="true"] { border-color: var(--blue); background: var(--surface0); }
+.reveal { width: 100%; padding: .7rem; margin: 0 0 1rem; font-size: 1rem; font-weight: 600; border: 0; border-radius: 8px; background: var(--green); color: var(--base); cursor: pointer; }
+.mine { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--surface0); }
+.mine summary { font-weight: 600; cursor: pointer; }
+.mine h3 { margin: 1rem 0 .4rem; font-size: 1rem; }
+.passport-head { margin: .75rem 0 .4rem; font-size: .9rem; }
+.stamps { display: flex; flex-wrap: wrap; gap: .35rem; }
+.stamp { padding: .2rem .6rem; border: 2px dashed var(--line, var(--surface1)); border-radius: 6px; font-size: .8rem; color: var(--subtext0); }
+.stamp.got { border-style: solid; background: var(--line, var(--surface0)); color: #fff; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.stamp.area { --line: var(--mauve); }
+.place-list { list-style: none; margin: 0; padding: 0; font-size: .9rem; }
+.place-list li { display: flex; flex-direction: column; padding: .35rem 0; }
+.place-list li.muted { padding: 0; }
+.place-list a { display: flex; align-items: center; gap: .4rem; color: var(--text); text-decoration: none; font-weight: 600; }
+.place-list a:hover { color: var(--blue); }
+.place-list .meta { margin: 0 0 0 1.2rem; }
+.dot.pin { width: .8rem; height: .8rem; border-width: 1px; flex: none; }
 .install { margin: 0 0 1rem; padding: .75rem; border: 1px solid var(--surface1); border-radius: 8px; background: var(--mantle); font-size: .9rem; }
 .install p { margin: 0 0 .6rem; }
 .install-actions { display: flex; gap: .5rem; }
