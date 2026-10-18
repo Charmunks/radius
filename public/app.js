@@ -517,6 +517,14 @@ $("theme-toggle").addEventListener("click", () => {
 });
 syncToggle();
 
+// Phones only (the button is hidden on desktop): collapse the map so the panel gets the whole screen.
+$("map-toggle").addEventListener("click", () => {
+  const closed = document.querySelector(".app").classList.toggle("map-closed");
+  $("map-toggle").textContent = closed ? "🗺" : "✕";
+  $("map-toggle").setAttribute("aria-label", closed ? "Open map" : "Close map");
+  if (!closed) map.invalidateSize();
+});
+
 // Caches the app, the last result's map tiles and Leaflet, so directions still work underground.
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 
