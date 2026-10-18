@@ -19,8 +19,6 @@ const store = {
   get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
 };
-const LAST_KEY = "last-result";
-const LAST_MAX_AGE_MS = 6 * 60 * 60 * 1000; // show the last pick on open (and offline) for this long
 const ARRIVED_KM = 0.3; // mystery trips reveal themselves this close to the destination station
 
 let start = null; // where the current result's directions start
@@ -191,10 +189,9 @@ function render(a, mystery = false) {
 
   if (hide) watchArrival(a.destStation.coords);
   else stopWatching();
-  // Keep the address bar pointing at this place, so reloading or copying the link brings it
-  // back. Mystery trips leave it out so it doesn't give the game away.
+  // Keep the address bar pointing at this place, so copying the link brings it back. Mystery
+  // trips leave it out so it doesn't give the game away.
   history.replaceState(null, "", hide ? "/" : shareUrl(d, a.mode));
-  store.set(LAST_KEY, { a, mystery: hide, start, customStart, savedAt: Date.now() });
 }
 
 function watchArrival(coords) {
@@ -492,31 +489,16 @@ function renderMine() {
   ].filter(Boolean).join(" · "))).join("") || "<li class=\"muted\">No trips yet. Places you've been are skipped in future picks.</li>";
 }
 
-// What to show on open: a shared link, else the last pick if it's recent (that also covers being offline).
+// What to show on open: a shared link, else the home screen.
 (() => {
+  try { localStorage.removeItem("last-result"); } catch {} // left over from when we restored the last pick
   const params = new URLSearchParams(location.search);
-  const last = store.get(LAST_KEY);
-  const fresh = last && Date.now() - last.savedAt < LAST_MAX_AGE_MS;
   const shared = params.get("place") && {
     id: params.get("place"),
     mode: ["transit", "walking", "driving"].includes(params.get("mode")) ? params.get("mode") : "transit",
     cat: params.get("cat"),
   };
-  const matchesLast = shared && last?.a.destination.id === shared.id && last.a.mode === shared.mode;
-  if (last && (matchesLast || (!shared && fresh))) {
-    start = last.start;
-    customStart = last.customStart;
-    if (customStart) {
-      $("start-label").textContent = customStart.label;
-      $("start-reset").hidden = false;
-    }
-    $("mode").value = last.a.mode;
-    seen = [last.a.destination.id];
-    render(last.a, last.mystery);
-    $("status").textContent = navigator.onLine && "You're offline.";
-  } else if (shared) {
-    openShared(shared);
-  }
+  if (shared) openShared(shared);
   syncGoLabel();
 })();
 loadMine();
